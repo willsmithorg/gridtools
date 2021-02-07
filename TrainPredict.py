@@ -13,21 +13,41 @@ class TrainPredict:
             raise(TypeError,'df must be a DataFrame not a ' + str(type(df)))
 
         self.__df = df
-        self.__npdf = self.__df.to_numpy()
- 
+        self.__numpydf = self.__df.to_numpy()
+        self.__numrows = self.__numpydf.shape[0]
+        self.__numcols = self.__numpydf.shape[1]
+        self.__models = []
+        
     def Train(self):
         # Eventually we need to train for each row of the source dataframe.   For now, we're only going to train on the 3nd column.
-        self.__model = XGBClassifier()
         
-        print(self.__npdf[:,0].shape)
-        
-        self.__model.fit(self.__npdf[:,0:1], self.__npdf[:,2])
+        # We create one model for every column.
+        for col in range(self.__numcols):
+            
+            self.__models.append(XGBClassifier())
+            
+            # The x is all the columns except the y column we are training on.
+            xcols = self.__numpydf
+            xtrain = np.delete(xcols, col, 1)
+            ytrain = self.__numpydf[:,col]
+ 
+            print(xtrain.shape)   
+            print(ytrain.shape)  
+            
+            self.__models[col].fit(xtrain, ytrain)
     
     def Predict(self):
-                
-        prediction = self.__model.predict(self.__npdf[:,0:1])  
-        for i in range(self.__npdf.shape[0]):
-            print('row:' + str(i) + ' actual:' + str(self.__npdf[i,2]) + ' prediction:' + str(prediction[i]))
+        
+        # We create one model prediction for every column.
+        for col in range(self.__numcols):  
             
+            # The x is all the columns except the y column we are predicting.
+            xcols = self.__numpydf
+            xtest = np.delete(xcols, col, 1)
+            
+            ytest = self.__models[col].predict(xtest)  
+            for row in range(self.__numrows):
+                print('['+str(row)+','+str(col)+'] actual:' + str(self.__numpydf[row,col]) + ' prediction:' + str(ytest[row]) + ('   <--- DIFF' if self.__numpydf[row,col]!=ytest[row] else ''))
+                
             
         
