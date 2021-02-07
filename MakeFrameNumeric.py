@@ -11,7 +11,7 @@ class MakeFrameNumeric:
             raise(TypeError,'df must be a DataFrame not a ' + str(type(df)))
 
         self.__df = df
-        self.__maximum_cardinality_for_one_hot_encode = 3
+        self.__maximum_cardinality_for_one_hot_encode = 10
     
     
     
@@ -30,13 +30,12 @@ class MakeFrameNumeric:
     
         converted = pd.DataFrame()
     
-        print('Converting...')
+        #print('Converting...')
         for col in self.__df.columns:
-            print('Column : ' + col)
-            print('Type: ' + str(type(self.__df[col][0])))
-            
+            #print('Column : ' + col)
+            #print('Type: ' + str(type(self.__df[col][0])))            
             cardinality = len(self.__df[col].unique())
-            print('Cardinality: ' + str(cardinality))
+            #print('Cardinality: ' + str(cardinality))
             
             # If string, one-hot (if not too many unique values) or feature encode.
             if isinstance(self.__df[col][0], str):
@@ -51,7 +50,6 @@ class MakeFrameNumeric:
                         feature = feature.reshape(self.__df.shape[0], 1)
                         onehot_encoder = OneHotEncoder(sparse=False, categories='auto')
                         feature = onehot_encoder.fit_transform(feature)
-                        print(feature)
                         for f in range(feature.shape[1]):
                             converted[col + '_' + str(f)] = feature[:,f]
             else:

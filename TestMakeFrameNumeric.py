@@ -67,13 +67,35 @@ class TestMakeFrameNumeric(unittest.TestCase):
         self.assertIsInstance(converted.iloc[0,1], (np.int64, np.float64))        # 2nd column
         self.assertIsInstance(converted.iloc[0,2], (np.int64, np.float64))        # 2nd column
 
-        # If we set the maximum cardinality lower, we should instead get a single converted column.        
+        # If we set the maximum cardinality lower than the column's cardinality, we should instead get a single converted column.        
         f.maximum_cardinality_for_one_hot_encode = 2
         converted = f.ConvertForXGBoost()         
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertEqual(converted.shape, (3,2))
         
+    def testConvertLargeTable(self):
+       
+        dict = {}
+        dict['id']= [ 'A','B','C','D','E','F','G','H','I','J' ]
+        for col in range(20):
+            dict['label'+str(col)] = [ 'A','B','C','D','E','F','G','H','I','J']
         
+        for col in range(20):
+            dict['onehot'+str(col)] = [ 'A','A','A','A','A','B','B','B','B','B']
+
+        df = pd.DataFrame(dict)
+        f = MakeFrameNumeric(df)        
+        f.maximum_cardinality_for_one_hot_encode = 3         
+        converted = f.ConvertForXGBoost()
+        self.assertIsInstance(converted, pd.DataFrame)
+        self.assertEqual(converted.shape, (10,1+20+(2*20)))  # 1 for the id, 20 for the high-cardinality column, and 2 for each of 20 one-hots, for the low cardinality columns
+        
+        # # Check every column is numeric:
+        # for col in range(1+20+(2*20)):
+            # for row in range(10):
+                # with self.subTest(row=row,col=col):
+                    # self.assertIsInstance(converted.iloc[row,col], (np.int64, np.float64))    
+
 if __name__ == '__main__':
     unittest.main()
     
