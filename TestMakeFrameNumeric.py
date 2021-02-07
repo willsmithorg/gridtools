@@ -64,9 +64,10 @@ class TestMakeFrameNumeric(unittest.TestCase):
         self.assertEqual(converted.shape, (3,4))
         
         self.assertIsInstance(converted.iloc[0,0], (np.int64, np.float64))        # id
-        self.assertIsInstance(converted.iloc[0,1], (np.int64, np.float64))        # 2nd column
-        self.assertIsInstance(converted.iloc[0,2], (np.int64, np.float64))        # 2nd column
-
+        self.assertIsInstance(converted.iloc[0,1], (np.int64, np.float64))        # 2nd column - onehot
+        self.assertIsInstance(converted.iloc[0,2], (np.int64, np.float64))        # 3nd column - onehot
+        self.assertIsInstance(converted.iloc[0,3], (np.int64, np.float64))        # 4nd column - onehot
+        
         # If we set the maximum cardinality lower than the column's cardinality, we should instead get a single converted column.        
         f.maximum_cardinality_for_one_hot_encode = 2
         converted = f.ConvertForXGBoost()         
@@ -89,12 +90,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         converted = f.ConvertForXGBoost()
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertEqual(converted.shape, (10,1+20+(2*20)))  # 1 for the id, 20 for the high-cardinality column, and 2 for each of 20 one-hots, for the low cardinality columns
-        
-        # # Check every column is numeric:
-        # for col in range(1+20+(2*20)):
-            # for row in range(10):
-                # with self.subTest(row=row,col=col):
-                    # self.assertIsInstance(converted.iloc[row,col], (np.int64, np.float64))    
+         
 
 if __name__ == '__main__':
     unittest.main()
