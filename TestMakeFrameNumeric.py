@@ -43,7 +43,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         # If we pass in an all-numeric dataframe, it should not be converted at all.
         f = MakeFrameNumeric(self.validDataFrame)
          
-        converted = f.ConvertForXGBoost()
+        converted, _, _ = f.ConvertForXGBoost()
          
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertTrue(converted.equals(self.validDataFrame))
@@ -57,7 +57,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         f = MakeFrameNumeric(df)
 
         f.maximum_cardinality_for_one_hot_encode = 3         
-        converted = f.ConvertForXGBoost()
+        converted, _, _  = f.ConvertForXGBoost()
          
         self.assertIsInstance(converted, pd.DataFrame)
         
@@ -70,7 +70,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         
         # If we set the maximum cardinality lower than the column's cardinality, we should instead get a single converted column.        
         f.maximum_cardinality_for_one_hot_encode = 2
-        converted = f.ConvertForXGBoost()         
+        converted, _, _  = f.ConvertForXGBoost()         
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertEqual(converted.shape, (3,2))
         
@@ -87,11 +87,42 @@ class TestMakeFrameNumeric(unittest.TestCase):
         df = pd.DataFrame(dict)
         f = MakeFrameNumeric(df)        
         f.maximum_cardinality_for_one_hot_encode = 3         
-        converted = f.ConvertForXGBoost()
+        converted, _, _  = f.ConvertForXGBoost()
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertEqual(converted.shape, (10,1+20+(2*20)))  # 1 for the id, 20 for the high-cardinality column, and 2 for each of 20 one-hots, for the low cardinality columns
          
 
+    def testColMapFeatureMap(self):
+        data = { 'country': ['Germany','Germany','Germany','Germany','Germany',
+                             'US', 'US', 'US', 'US', 'US',
+                             'UK', 'UK', 'UK', 'UK', 'UK'],
+                 'currency':['EUR','EUR','EUR','EUR','MXN',
+                             'USD','USD','USD','USD','GBP',
+                             'GBP','GBP','GBP','GBP','GBP'],
+                 'manyvalues':['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O']}
+            
+        frame = pd.DataFrame(data)
+        mfn = MakeFrameNumeric(frame)
+        mfn.maximum_cardinality_for_one_hot_encode = 10   # Hardcode so we don't get unexpected behaviour below if we change the default in the class.
+
+        _, colmap, featuremap = mfn.ConvertForXGBoost()
+
+        # The colmap is a mapping from destination to source column.
+        self.assertEqual(colmap, 
+            {'country_0': 'country', 'country_1': 'country', 'country_2': 'country', 
+            'currency_0': 'currency', 'currency_1': 'currency', 'currency_2': 'currency', 'currency_3': 'currency', 
+            'manyvalues': 'manyvalues'})
+            
+        # The featuremap is a mapping from converted value to source token, per destination column.
+        self.assertEqual(featuremap, 
+            {'country_0': 'Germany', 'country_1': 'UK', 'country_2': 'US', 
+             'currency_0': 'EUR', 'currency_1': 'GBP', 'currency_2': 'MXN', 'currency_3': 'USD', 
+             'manyvalues': {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 
+                            9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N', 14: 'O'}})
+                            
+        
+        
+    
 if __name__ == '__main__':
     unittest.main()
     
