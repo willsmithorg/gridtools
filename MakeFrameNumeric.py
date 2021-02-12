@@ -36,7 +36,6 @@ class MakeFrameNumeric:
         self.__converted = pd.DataFrame()
         self.__colmap = dict()   
         self.__featuremap = dict()
-        
     
         #print('Converting...')
         for col in self.__df.columns:
@@ -51,13 +50,11 @@ class MakeFrameNumeric:
                     # Feature
                     label_encoder = LabelEncoder()
                     feature = label_encoder.fit_transform(self.__df[col])
-                    
-                    
+                                    
                     if cardinality > self.__maximum_cardinality_for_one_hot_encode:
                         self.__converted[col] = feature
                         self.__colmap[col] = col
                         self.__featuremap[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
-
 
                     else:
                         # One-hot
@@ -68,7 +65,6 @@ class MakeFrameNumeric:
                             self.__converted[col + '_' + str(f)] = feature[:,f]
                             self.__colmap[col + '_' + str(f)] = col
                             self.__featuremap[col + '_' + str(f)] = label_encoder.classes_[f]
-
 
             else:
                 # Already numeric, copy directly.
