@@ -43,7 +43,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         # If we pass in an all-numeric dataframe, it should not be converted at all.
         f = MakeFrameNumeric(self.validDataFrame)
          
-        converted, _, _ = f.ConvertForXGBoost()
+        (converted, colmapd2s, colmaps2d, featuremapd, featuremaps, coltyped, coltypes) = f.Convert()
          
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertTrue(converted.equals(self.validDataFrame))
@@ -57,20 +57,20 @@ class TestMakeFrameNumeric(unittest.TestCase):
         f = MakeFrameNumeric(df)
 
         f.maximum_cardinality_for_one_hot_encode = 3         
-        converted, _, _  = f.ConvertForXGBoost()
+        (converted, colmapd2s, colmaps2d, featuremapd, featuremaps, coltyped, coltypes) = f.Convert()
          
         self.assertIsInstance(converted, pd.DataFrame)
         
         self.assertEqual(converted.shape, (3,4))
         
-        self.assertIsInstance(converted.iloc[0,0], (np.int64, np.float64))        # id
-        self.assertIsInstance(converted.iloc[0,1], (np.int64, np.float64))        # 2nd column - onehot
-        self.assertIsInstance(converted.iloc[0,2], (np.int64, np.float64))        # 3nd column - onehot
-        self.assertIsInstance(converted.iloc[0,3], (np.int64, np.float64))        # 4nd column - onehot
+        self.assertIsInstance(converted.iloc[0,0], (np.int32, np.int64, np.float64))        # id
+        self.assertIsInstance(converted.iloc[0,1], (np.int32, np.int64, np.float64))        # 2nd column - onehot
+        self.assertIsInstance(converted.iloc[0,2], (np.int32, np.int64, np.float64))        # 3nd column - onehot
+        self.assertIsInstance(converted.iloc[0,3], (np.int32, np.int64, np.float64))        # 4nd column - onehot
         
         # If we set the maximum cardinality lower than the column's cardinality, we should instead get a single converted column.        
         f.maximum_cardinality_for_one_hot_encode = 2
-        converted, _, _  = f.ConvertForXGBoost()         
+        (converted, colmapd2s, colmaps2d, featuremapd, featuremaps, coltyped, coltypes)  = f.Convert()         
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertEqual(converted.shape, (3,2))
         
@@ -87,7 +87,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         df = pd.DataFrame(dict)
         f = MakeFrameNumeric(df)        
         f.maximum_cardinality_for_one_hot_encode = 3         
-        converted, _, _  = f.ConvertForXGBoost()
+        (converted, colmapd2s, colmaps2d, featuremapd, featuremaps, coltyped, coltypes) = f.Convert()
         self.assertIsInstance(converted, pd.DataFrame)
         self.assertEqual(converted.shape, (10,1+20+(2*20)))  # 1 for the id, 20 for the high-cardinality column, and 2 for each of 20 one-hots, for the low cardinality columns
          
@@ -105,22 +105,38 @@ class TestMakeFrameNumeric(unittest.TestCase):
         mfn = MakeFrameNumeric(frame)
         mfn.maximum_cardinality_for_one_hot_encode = 10   # Hardcode so we don't get unexpected behaviour below if we change the default in the class.
 
-        _, colmap, featuremap = mfn.ConvertForXGBoost()
+        (converted, colmapd2s, colmaps2d, featuremapd, featuremaps, coltyped, coltypes) = mfn.Convert()
+        
 
-        # The colmap is a mapping from destination to source column.
-        self.assertEqual(colmap, 
+        # The colmapd2s is a mapping from destination to source column.
+        self.assertEqual(colmapd2s, 
             {'country_0': 'country', 'country_1': 'country', 'country_2': 'country', 
             'currency_0': 'currency', 'currency_1': 'currency', 'currency_2': 'currency', 'currency_3': 'currency', 
             'manyvalues': 'manyvalues'})
             
+        # The colmaps2d is a mapping from source to destinationcolumn.
+        self.assertEqual(colmaps2d, 
+            {'country': ['country_0', 'country_1', 'country_2' ], 
+             'currency': ['currency_0', 'currency_1', 'currency_2', 'currency_3' ], 
+             'manyvalues': 'manyvalues'})            
+            
         # The featuremap is a mapping from converted value to source token, per destination column.
-        self.assertEqual(featuremap, 
+        self.assertEqual(featuremapd, 
             {'country_0': 'Germany', 'country_1': 'UK', 'country_2': 'US', 
              'currency_0': 'EUR', 'currency_1': 'GBP', 'currency_2': 'MXN', 'currency_3': 'USD', 
              'manyvalues': {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 
                             9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N', 14: 'O'}})
-                            
+
+        self.assertCountEqual(featuremaps['country'], ['Germany', 'UK', 'US'])
+        self.assertCountEqual(featuremaps['currency'], ['EUR', 'GBP', 'MXN', 'USD']);
         
+        self.assertEqual(featuremaps['manyvalues'],  {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 
+                            9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N', 14: 'O'})
+                            
+        self.assertEqual(coltyped, 
+            {'country_0': 'onehot', 'country_1': 'onehot', 'country_2': 'onehot', 
+             'currency_0': 'onehot', 'currency_1': 'onehot', 'currency_2': 'onehot', 'currency_3': 'onehot', 
+             'manyvalues': 'labelencoded'})
         
     
 if __name__ == '__main__':

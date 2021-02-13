@@ -5,72 +5,94 @@ from sklearn.preprocessing import OneHotEncoder
 
 class MakeFrameNumeric:
 
-    def __init__(self, df):
-         
-        if( not isinstance(df, pd.DataFrame)):
-            raise(TypeError,'df must be a DataFrame not a ' + str(type(df)))
+    def __init__(self):
 
-        self.__df = df
-        self.__maximum_cardinality_for_one_hot_encode = 10
+        self.maximum_cardinality_for_one_hot_encode = 10
     
         # The converted dataframe
-        self.__converted = None
+        self.converteddf = None
         # Mapping from destination column to source column
-        self.__colmap = None 
-        # Feature or features the column corresponds to in the source column
-        self.__featuremap = None
-    
-    @property
-    def maximum_cardinality_for_one_hot_encode(self):
-        return self.__maximum_cardinality_for_one_hot_encode
-    
-    @maximum_cardinality_for_one_hot_encode.setter
-    def maximum_cardinality_for_one_hot_encode(self, newval):
-        self.__maximum_cardinality_for_one_hot_encode = newval
+        self.colmapd2s = None 
+        # Mapping from source column to destination column
+        self.colmaps2d = None         
+        # Feature or features the column corresponds to : destination column
+        self.featuremapd = None
+        # Feature or features the column corresponds to : source column
+        self.featuremaps = None
+        # Type of destination column : raw, labelencoded, onehot        
+        self.coltyped = None
+        # Type of source column : raw, labelencoded, onehot
+        self.coltypes = None        
         
-    
+
     # xgboost needs the entire frame to be numeric.
     # So we'll convert strings to either one-hot or (if the cardinality is excessive for 1-hot) into a numerical label per unique string.
-    def ConvertForXGBoost(self):
-    
-        self.__converted = pd.DataFrame()
-        self.__colmap = dict()   
-        self.__featuremap = dict()
-    
+    def Convert(self, inputdf):
+         
+        if( not isinstance(inputdf, pd.DataFrame)):
+            raise(TypeError,'inputdf must be a DataFrame not a ' + str(type(inputdf)))
+
+        self.inputdf = inputdf    
+        self.converteddf = pd.DataFrame()
+        self.colmapd2s = dict()  
+        self.colmaps2d = dict()           
+        self.featuremapd = dict()
+        self.featuremaps = dict()
+        self.coltyped = dict()       
+        self.coltypes = dict()
+        
         #print('Converting...')
-        for col in self.__df.columns:
+        for col in self.inputdf.columns:
             #print('Column : ' + col)
-            #print('Type: ' + str(type(self.__df[col][0])))            
-            cardinality = len(self.__df[col].unique())
+            #print('Type: ' + str(type(self.inputdf[col][0])))            
+            cardinality = len(self.inputdf[col].unique())
             #print('Cardinality: ' + str(cardinality))
             
             # If string, one-hot (if not too many unique values) or feature encode.
-            if isinstance(self.__df[col][0], str):
+            if isinstance(self.inputdf[col][0], str):
                     
                     # Feature
                     label_encoder = LabelEncoder()
-                    feature = label_encoder.fit_transform(self.__df[col])
+                    feature = label_encoder.fit_transform(self.inputdf[col])
+                    feature = feature.astype(int)
                                     
-                    if cardinality > self.__maximum_cardinality_for_one_hot_encode:
-                        self.__converted[col] = feature
-                        self.__colmap[col] = col
-                        self.__featuremap[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
+                    if cardinality > self.maximum_cardinality_for_one_hot_encode:
+                        self.converteddf[col] = feature
+                        self.colmapd2s[col] = col
+                        self.colmaps2d[col] = col
+                        self.featuremapd[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
+                        self.featuremaps[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_)) 
+                        self.coltyped[col] = 'labelencoded'
+                        self.coltypes[col] = 'labelencoded'
 
                     else:
                         # One-hot
-                        feature = feature.reshape(self.__df.shape[0], 1)
+                        feature = feature.reshape(self.inputdf.shape[0], 1)
                         onehot_encoder = OneHotEncoder(sparse=False, categories='auto')
                         feature = onehot_encoder.fit_transform(feature)
+                        feature = feature.astype(int)
+                       
+                        self.featuremaps[col] = label_encoder.classes_
+                        self.colmaps2d[col] = []
+                        self.coltypes[col] = 'onehot'
+                        
                         for f in range(feature.shape[1]):
-                            self.__converted[col + '_' + str(f)] = feature[:,f]
-                            self.__colmap[col + '_' + str(f)] = col
-                            self.__featuremap[col + '_' + str(f)] = label_encoder.classes_[f]
+                            convertedcol = col + '_' + str(f)
+                            self.converteddf[convertedcol] = feature[:,f]
+                            self.colmapd2s[convertedcol] = col
+                            self.colmaps2d[col].append(convertedcol)
+                            self.featuremapd[convertedcol] = label_encoder.classes_[f]                                                      
+                            self.coltyped[convertedcol] = 'onehot'
 
             else:
                 # Already numeric, copy directly.
-                self.__converted[col] = self.__df[col]
-                self.__colmap[col] = col
-                self.__featuremap[col] = None
+                self.converteddf[col] = self.inputdf[col]
+                self.colmapd2s[col] = col                
+                self.colmaps2d[col] = col
+                self.featuremapd[col] = None                
+                self.featuremaps[col] = None
+                self.coltyped[col] = 'raw'
+                self.coltypes[col] = 'raw'                
             
-        return self.__converted, self.__colmap, self.__featuremap
+        return self.converteddf
         

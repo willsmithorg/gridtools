@@ -26,31 +26,31 @@ class TestMakeFrameNumeric(unittest.TestCase):
     def testInitBadParams1(self):
         # Test bad calls to the constructor.
         with self.assertRaises(TypeError):
-            f = TrainPredict(123)
+            tp = TrainPredict(123)
 
     def testInitBadParams2(self):            
         # Test bad calls to the constructor.
         with self.assertRaises(TypeError):
-            f = TrainPredict([])
+            tp = TrainPredict([])
  
     def testInitGood(self):
         # Check we the constructor returns something sane if passed good params.
-        f = TrainPredict(self.data1)
-        self.assertIsInstance(f, TrainPredict)
+        tp = TrainPredict()
+        self.assertIsInstance(tp, TrainPredict)
 
     def testSaneMeanStdPredictions(self):
         
-        f = TrainPredict(self.data1)
-        f.Train()        
-        means,stds = f.Predict()
+        tp = TrainPredict()
+        tp.Train(self.data1)        
+        means,stds = tp.Predict()
         
         self.assertTrue(all(means[:,1] == [3.0] * 10))
         self.assertTrue(all(stds[:,1] == [0.0] * 10))
 
         # Now some standard normal data should have mean and std approximately == 1.0
-        f = TrainPredict(self.data3)
-        f.Train()        
-        means,stds = f.Predict()
+        tp = TrainPredict()
+        tp.Train(self.data3)        
+        means,stds = tp.Predict()
   
         self.assertTrue(all(means[:,0] == [50.0] * self.data3_count))
         self.assertTrue(all(stds[:,0] == [0.0] * self.data3_count))
@@ -59,16 +59,16 @@ class TestMakeFrameNumeric(unittest.TestCase):
         for i in range(self.data3_count):
             with self.subTest(i=i):
                 self.assertTrue(180 <= means[i,1] <= 220)
-                self.assertTrue(0.1 <  stds[i,1] <= 10)
+                self.assertTrue(0.00001 <  stds[i,1] <= 10)
         
 
     def testSpotBadPoints(self):
         # Check we can spot the deliberate errors introduced into column 2.
         # Check we don't find errors anywhere else.
-        f = TrainPredict(self.data2)
-        f.Train()        
-        _ = f.Predict()  
-        boolErrors = f.SpotErrors()
+        tp = TrainPredict()
+        tp.Train(self.data2)        
+        _ = tp.Predict()  
+        boolErrors = tp.SpotErrors()
         #print(boolErrors)
         for i in range(self.data2_count):
             with self.subTest(i=i):
@@ -76,18 +76,31 @@ class TestMakeFrameNumeric(unittest.TestCase):
                     self.assertTrue(boolErrors[i][1])
                 else:
                     self.assertFalse(boolErrors[i][1])
-
-    def testCanSkipSteps(self):
-        f = TrainPredict(self.data2)
-        # Forgot to Train or Predict... no problem.
-        boolErrors = f.SpotErrors()
-        for i in range(self.data2_count):
-                with self.subTest(i=i):
-                    if i==0 or i==self.data2_count-1:
-                        self.assertTrue(boolErrors[i][1])
-                    else:
-                        self.assertFalse(boolErrors[i][1])
-
+     
+     
+    def testCalcMeanAndDeviation(self):    
+        y = [3.0] * 100
+        tp = TrainPredict()              
+        (mn,dev) = tp.CalcMeanAndDeviation(y, 'raw')
+        self.assertEqual(mn, 3.0)
+        self.assertEqual(dev, 0)
+        
+        (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
+        self.assertEqual(mn, 3.0)
+        self.assertEqual(dev, 0)
+        
+        # Normal mean and starndard deviation.
+        y = [3.0] * 100 + [100]
+        (mn,dev) = tp.CalcMeanAndDeviation(y, 'raw')        
+        self.assertAlmostEqual(mn, 3.9603960396039604)
+        self.assertAlmostEqual(dev, 9.603960396039602)
+        
+        # If it's a label encoded field, the mean is the mode, and the standard deviation is lower because its' based
+        # on the average boolean difference.
+        (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
+        self.assertEqual(mn, 3)
+        self.assertAlmostEqual(dev, 0.009900990099009901)
+        
 if __name__ == '__main__':
     unittest.main()
     
