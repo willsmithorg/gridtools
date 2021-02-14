@@ -74,11 +74,11 @@ class TrainPredict:
                 self.models[cold][modelconf].fit(xtrain, ytrain)
 
         
-    def Predict(self):
+    def Predict(self, sourcedf):
 
         # Train, if we haven't already.
         if self.models is None:
-            self.Train()
+            self.Train(sourcedf)
         
         self.predictedmeans = np.zeros((self.numrow, self.numcold))
         self.predictedstds  = np.zeros((self.numrow, self.numcold))
@@ -104,11 +104,11 @@ class TrainPredict:
         return(self.predictedmeans, self.predictedstds)       
             
     
-    def SpotErrors(self):
+    def SpotErrors(self, sourcedf):
     
         # Predict, if we haven't already.
         if self.predictedmeans is None:
-            self.Predict()
+            self.Predict(sourcedf)
     
         # Initially, we found no errors.
         self.boolerrors = np.full((self.numrow, self.numcold), False)
@@ -142,10 +142,10 @@ class TrainPredict:
         return self.boolerrors
         
         
-    def PrintErrors(self):
+    def PrintErrors(self, sourcedf):
         # Spot errors, if we haven't already.
         if self.boolerrors is None:
-            self.SpotErrors()
+            self.SpotErrors(sourcedf)
         
         for cols in range(len(self.sourcedf.columns)):
         

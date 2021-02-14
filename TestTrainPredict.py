@@ -39,18 +39,15 @@ class TestMakeFrameNumeric(unittest.TestCase):
         self.assertIsInstance(tp, TrainPredict)
 
     def testSaneMeanStdPredictions(self):
-        
-        tp = TrainPredict()
-        tp.Train(self.data1)        
-        means,stds = tp.Predict()
+        tp = TrainPredict()         
+        means,stds = tp.Predict(self.data1)
         
         self.assertTrue(all(means[:,1] == [3.0] * 10))
         self.assertTrue(all(stds[:,1] == [0.0] * 10))
 
         # Now some standard normal data should have mean and std approximately == 1.0
-        tp = TrainPredict()
-        tp.Train(self.data3)        
-        means,stds = tp.Predict()
+        tp = TrainPredict()     
+        means,stds = tp.Predict(self.data3)
   
         self.assertTrue(all(means[:,0] == [50.0] * self.data3_count))
         self.assertTrue(all(stds[:,0] == [0.0] * self.data3_count))
@@ -65,10 +62,8 @@ class TestMakeFrameNumeric(unittest.TestCase):
     def testSpotBadPoints(self):
         # Check we can spot the deliberate errors introduced into column 2.
         # Check we don't find errors anywhere else.
-        tp = TrainPredict()
-        tp.Train(self.data2)        
-        _ = tp.Predict()  
-        boolErrors = tp.SpotErrors()
+        tp = TrainPredict() 
+        boolErrors = tp.SpotErrors(self.data2)
         #print(boolErrors)
         for i in range(self.data2_count):
             with self.subTest(i=i):
