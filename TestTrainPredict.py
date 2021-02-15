@@ -56,7 +56,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         for i in range(self.data3_count):
             with self.subTest(i=i):
                 self.assertTrue(180 <= means[i,1] <= 220)
-                self.assertTrue(0.00001 <  stds[i,1] <= 10)
+                self.assertTrue(0 <  stds[i,1] <= 10)
         
 
     def testSpotBadPoints(self):
@@ -95,6 +95,21 @@ class TestMakeFrameNumeric(unittest.TestCase):
         (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
         self.assertEqual(mn, 3)
         self.assertAlmostEqual(dev, 0.009900990099009901)
+        
+        # Now repeat on numpy arrays.
+        y = np.array([[1.0, 2.0, 3.0], 
+                     [3.0, 4.0, 5.0]])
+        (mn,dev) = tp.CalcMeanAndDeviation(y, 'raw')
+        self.assertTrue(np.allclose(mn, [2.0, 4.0]))
+        self.assertTrue(np.allclose(dev, [0.81649658, 0.81649658]))
+        
+        (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
+        print(mn)
+        print(dev)
+        self.assertTrue(np.allclose(mn, [1.0, 3.0]))         # mode returns the first value if there is no mode
+        self.assertTrue(np.allclose(dev, [0.66666667, 0.66666667]))
+        
+        
         
 if __name__ == '__main__':
     unittest.main()

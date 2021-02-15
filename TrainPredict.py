@@ -1,11 +1,17 @@
 import pandas as pd
 import scipy as scipy
+import random
 import numpy as np
 import sklearn.model_selection as model_selection
 from xgboost import XGBClassifier, DMatrix
 from MakeFrameNumeric import MakeFrameNumeric
 
-# Only works for 2 columns so far, 1 is a kind of category and 2 is the data.
+
+# Train and predict a grid of tabular data (either a dict or a dataframe)
+# 
+# Nomenclature:
+#     cold = column in the destination dataframe (labelencoded, onehotencoded)
+#     cols = column in the source dataframe      (as passed in by the user)
 
 class TrainPredict:
 
@@ -29,6 +35,10 @@ class TrainPredict:
         self.predictedstds = None
         self.boolerrors = None
         
+        # Make the predictions deterministic
+        random.seed(42)
+        np.random.seed(42)
+        
  
     def Train(self, sourcedf):
     
@@ -43,6 +53,9 @@ class TrainPredict:
         self.converteddf = mfn.Convert(sourcedf)
         # Read some other mappings out of the conversion
         self.coltyped = mfn.coltyped
+        self.coltypes = mfn.coltypes
+        self.featuremapd = mfn.featuremapd      
+        self.colmaps2d = mfn.colmaps2d
         
         self.numpydf = self.converteddf.to_numpy()
         self.numrow = self.numpydf.shape[0]
@@ -67,7 +80,7 @@ class TrainPredict:
                 ytrain = self.numpydf[:,cold]
      
                 # Train on a different subset of the data each time to add some randomness.
-                xtrain, xtest, ytrain, ytest = model_selection.train_test_split(xtrain, ytrain, train_size=0.7)
+                xtrain, xtest, ytrain, ytest = model_selection.train_test_split(xtrain, ytrain, train_size=0.8)
                 
                 # print(xtrain)
                 # print(ytrain)
@@ -100,7 +113,9 @@ class TrainPredict:
             
             # Accumulate means and standard deviations of the predictions per column.  Then we throw the detailed prediction data away.
             (self.predictedmeans[:,cold], self.predictedstds[:,cold]) = self.CalcMeanAndDeviation(ytest, self.coltyped[coldname])
-            
+        
+        self.predictedmeans = pd.DataFrame(data=self.predictedmeans, columns=self.converteddf.columns)
+        self.predictedstds  = pd.DataFrame(data=self.predictedstds,  columns=self.converteddf.columns)
         return(self.predictedmeans, self.predictedstds)       
             
     
@@ -111,33 +126,33 @@ class TrainPredict:
             self.Predict(sourcedf)
     
         # Initially, we found no errors.
-        self.boolerrors = np.full((self.numrow, self.numcold), False)
-        for cold in range(self.numcold):  
-            coldname = self.converteddf.columns[cold]
+        self.boolerrors = pd.DataFrame(False, index=np.arange(len(self.converteddf.index)), columns=self.converteddf.columns)
+        
+        for coldname in self.converteddf.columns:
 
             for row in range(self.numrow):
 
-                cellmean = self.predictedmeans[row,cold]
-                cellstd  = self.predictedstds[row,cold]
+                cellmean = self.predictedmeans[coldname][row]
+                cellstd  = self.predictedstds[coldname][row]
    
-                #TODO work on the logic below
                 if self.coltyped[coldname] == 'labelencoded':
-                    if cellmean != self.numpydf[row,cold] and cellstd < 0.2:
-                        zscore = self.zscore_for_error
-                    else:
-                        zscore = 0
+                    # If prediction <> actual and we are confident about the prediction
+                    if cellmean != self.converteddf[coldname][row] and cellstd <= 0.3:
+                        self.boolerrors[coldname][row] = True
+                elif self.coltyped[coldname] == 'onehot':
+                    if round(cellmean) != self.converteddf[coldname][row] and cellstd <= 0.3:
+                        self.boolerrors[coldname][row] = True                
                 else:
-                    if cellstd == 0:
-                        if cellmean != self.numpydf[row,cold]:
-                            zscore = self.zscore_for_error
-                        else:
-                            zscore = 0
+                    # 100% confident prediction?
+                    if cellstd == 0.0:
+                        if cellmean != self.converteddf[coldname][row]:
+                            self.boolerrors[coldname][row] = True
                     else:
-                        zscore = np.abs(cellmean - self.numpydf[row,cold]) / cellstd
-                        
-                # If bad, flag it as bad
-                if zscore >= self.zscore_for_error:
-                    self.boolerrors[row, cold] = True
+                        # Not 100% confident prediction, use the zscore to decide if it's an error.
+                        zscore = np.abs(cellmean - self.converteddf[coldname][row]) / cellstd       
+                        # If bad, flag it as bad
+                        if zscore >= self.zscore_for_error:
+                            self.boolerrors[coldname][row] = True
                     
         return self.boolerrors
         
@@ -147,47 +162,83 @@ class TrainPredict:
         if self.boolerrors is None:
             self.SpotErrors(sourcedf)
         
-        for cols in range(len(self.sourcedf.columns)):
-        
-            colsname = self.sourcedf.columns[cols]
+        for colsname in self.sourcedf.columns:
+       
             for row in range(self.numrow):
 
                 # If it's a literal error, print it.
                 if self.coltypes[colsname] == 'raw':
-                    cold = colsname
-                    colnameloc = self.colname2loc[cold]
-                    if self.boolerrors[row, colnameloc]:                    
+                    coldname = colsname
+                    if self.boolerrors[coldname][row]:                    
                         print('Raw column ' + colsname + ' row ' + str(row) + 
-                        ': actual=' + str(self.df[cold][row]) +
-                        ' predicted' + str(self.predictedmeans[row, colnameloc]))
+                        ': actual=' + str(self.sourcedf[colsname][row]) +
+                        ' predicted=' + str(self.predictedmeans[coldname][row]))
                     
                 elif self.coltypes[colsname] == 'labelencoded':
-                    cold = colsname                
-                    colnameloc = self.colname2loc[colsname]
-                    if self.boolerrors[row, colnameloc]:
+                    coldname = colsname                
+                    if self.boolerrors[coldname][row]:                    
                     
                         # What is the predicted value?  If std < 0.3 we are close to a single prediction
-                        if self.predictedstds[row, colnameloc] < 1:
-                            predicted = str(self.featuremapd[cold][round(self.predictedmeans[row, colnameloc])])
+                        if self.predictedstds[coldname][row] < 0.3:
+                            predicted = str(self.featuremapd[coldname][round(self.predictedmeans[coldname][row])])
                         else:
                             predicted = '(various)'
                         
                         print('Raw column ' + colsname + ' row ' + str(row) + 
-                        ': actual=' + self.sourcedf[colsname][row] +
-                        ' predicted=' + predicted )           
+                        ': actual=' + str(self.sourcedf[colsname][row]) +
+                        ' predicted=' + predicted ) 
+
+                elif self.coltypes[colsname] == 'onehot':
+                    # We have to look through all the destination columns, find what this mapped to, and then see
+                    # whether we think that's an error.
+                   
+                    boolErrorSeen = False
+                    predicted=[]
+                    for coldname in self.colmaps2d[colsname]:
+                        if self.boolerrors[coldname][row]:
+                            boolErrorSeen = True 
+                            if self.converteddf[coldname][row] == 0:
+                                predicted.append(str(self.featuremapd[coldname]))
+                    
+                    if boolErrorSeen:
+                        if len(predicted) > 0:
+                            print('Raw column ' + colsname + ' row ' + str(row) +
+                            ': actual='+ str(self.sourcedf[colsname][row]) +
+                            ' predicted = ' + ','.join(map(str,predicted)) + '')                           
+                        else:
+                            print('Raw column ' + colsname + ' row ' + str(row) +
+                            ': actual='+ str(self.sourcedf[colsname][row]) +
+                            ' predicted = (not known)')                            
+                    
+                    # str(any(self.boolerrors[self.colmaps2d[colsname]][row])))
+                                      
+
+
+                    
+                                 
         
     def CalcMeanAndDeviation(self, ypredictions, coltype):
                 
         # If the column is a labelencoded, just calculate the standard deviation of boolean difference from the most common value
         if coltype == 'labelencoded':
             # Calculate the most common value
-            mean = scipy.stats.mode(ypredictions).mode
-            # And calculate the variation as mean deviation away from that.
-            std = np.mean(ypredictions != mean)
+            if isinstance(ypredictions, list) or len(ypredictions.shape) == 1:
+                mean = scipy.stats.mode(ypredictions).mode
+                # And calculate the variation as mean deviation away from that, in boolean terms (different = 1, same = 0)
+                std = np.mean(ypredictions != mean)
+            else:
+                assert(False, "weird")
+                mean = scipy.stats.mode(ypredictions, axis=1).mode
+                std = np.mean(ypredictions != mean, axis=1)
+                mean = mean.reshape(-1)
         else:
             # Otherwise, conventional mean and standard deviation.
-            mean = np.mean(ypredictions)           
-            std  = np.std(ypredictions)
-            
+            if isinstance(ypredictions, list) or len(ypredictions.shape) == 1:
+                mean = np.mean(ypredictions)           
+                std  = np.std(ypredictions)
+            else:
+                mean = np.mean(ypredictions, axis=1)           
+                std  = np.std(ypredictions, axis=1)
+
         return (mean, std)
         
