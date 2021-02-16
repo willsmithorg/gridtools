@@ -1,6 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
+from pandas.util.testing import assert_frame_equal 
 from TrainPredict import TrainPredict
 
 
@@ -13,7 +14,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         
         # Some predictable data in y.  Mess up 2 items, index 0 and last, and see if we can find them.
         self.data2 = {'x1': [  100,  100,100,100,100,100,100,100,                  200,200,200,200,200,200,200,  200 ],
-                      'y':  [-20.0,  1.0,1.0,1.0,1.0,1.0,1.0,1.0,                  6.0,5.0,6.0,5.0,6.0,5.0,6.0,  20.0]}              
+                      'y':  [-20.0,  1.0,1.0,1.0,1.0,1.0,1.0,1.0,                  6.0,6.0,6.0,6.0,6.0,6.0,6.0,  20.0]}              
         self.data2_count = len(self.data2['y'])
                         
 
@@ -42,23 +43,23 @@ class TestMakeFrameNumeric(unittest.TestCase):
         tp = TrainPredict()         
         means,stds = tp.Predict(self.data1)
         
-        self.assertTrue(all(means[:,1] == [3.0] * 10))
-        self.assertTrue(all(stds[:,1] == [0.0] * 10))
+        print(means)
+        self.assertTrue(means[['value']].equals(pd.DataFrame([3.0] * 10, columns=['value'])))
+        self.assertTrue(stds[['value']].equals(pd.DataFrame([0.0] * 10, columns=['value'])))
 
         # Now some standard normal data should have mean and std approximately == 1.0
         tp = TrainPredict()     
         means,stds = tp.Predict(self.data3)
   
-        self.assertTrue(all(means[:,0] == [50.0] * self.data3_count))
-        self.assertTrue(all(stds[:,0] == [0.0] * self.data3_count))
+        self.assertTrue(means[['col1']].equals(pd.DataFrame([50.0] * self.data3_count, columns=['col1'])))
+        self.assertTrue(stds[['col1']].equals(pd.DataFrame([0.0] * self.data3_count, columns=['col1'])))
 
         # Check sane means and standard deviations.  This might randomly fail, if so, check and widen tolerances.
         for i in range(self.data3_count):
             with self.subTest(i=i):
-                self.assertTrue(180 <= means[i,1] <= 220)
-                self.assertTrue(0 <  stds[i,1] <= 10)
+                self.assertTrue(180 <= means['col2'][i] <= 220)
+                self.assertTrue(0 <  stds['col2'][i] <= 10)
         
-
     def testSpotBadPoints(self):
         # Check we can spot the deliberate errors introduced into column 2.
         # Check we don't find errors anywhere else.
@@ -68,9 +69,9 @@ class TestMakeFrameNumeric(unittest.TestCase):
         for i in range(self.data2_count):
             with self.subTest(i=i):
                 if i==0 or i==self.data2_count-1:
-                    self.assertTrue(boolErrors[i][1])
+                    self.assertTrue(boolErrors['y'][i])
                 else:
-                    self.assertFalse(boolErrors[i][1])
+                    self.assertFalse(boolErrors['y'][i])
      
      
     def testCalcMeanAndDeviation(self):    
