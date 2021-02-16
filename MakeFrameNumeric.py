@@ -61,7 +61,7 @@ class MakeFrameNumeric:
                         self.colmapd2s[col] = col
                         self.colmaps2d[col] = col
                         self.featuremapd[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
-                        self.featuremaps[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_)) 
+                        self.featuremaps[col] = dict(zip(label_encoder.classes_, range(len(label_encoder.classes_)))) 
                         self.coltyped[col] = 'labelencoded'
                         self.coltypes[col] = 'labelencoded'
 
@@ -72,16 +72,17 @@ class MakeFrameNumeric:
                         feature = onehot_encoder.fit_transform(feature)
                         feature = feature.astype(int)
                        
-                        self.featuremaps[col] = label_encoder.classes_
                         self.colmaps2d[col] = []
                         self.coltypes[col] = 'onehot'
+                        
+                        self.featuremaps[col] = dict(zip(label_encoder.classes_, range(len(label_encoder.classes_)))) 
                         
                         for f in range(feature.shape[1]):
                             convertedcol = col + '_' + str(f)
                             self.converteddf[convertedcol] = feature[:,f]
+                            self.featuremapd[convertedcol] = label_encoder.classes_[f]
                             self.colmapd2s[convertedcol] = col
-                            self.colmaps2d[col].append(convertedcol)
-                            self.featuremapd[convertedcol] = label_encoder.classes_[f]                                                      
+                            self.colmaps2d[col].append(convertedcol)                         
                             self.coltyped[convertedcol] = 'onehot'
 
             else:

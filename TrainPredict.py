@@ -3,7 +3,7 @@ import scipy as scipy
 import random
 import numpy as np
 import sklearn.model_selection as model_selection
-from xgboost import XGBClassifier, DMatrix
+from xgboost import XGBClassifier, XGBRegressor, DMatrix
 from MakeFrameNumeric import MakeFrameNumeric
 
 
@@ -26,7 +26,7 @@ class TrainPredict:
         self.coltyped = None
         
         self.models_for_confidence = 10
-        self.zscore_for_error = 3
+        self.zscore_for_error = 10
         
 
 
@@ -54,19 +54,28 @@ class TrainPredict:
         # Read some other mappings out of the conversion
         self.coltyped = mfn.coltyped
         self.coltypes = mfn.coltypes
-        self.featuremapd = mfn.featuremapd      
+        self.featuremapd = mfn.featuremapd   
+        self.featuremaps = mfn.featuremaps  
         self.colmaps2d = mfn.colmaps2d
         
         self.numpydf = self.converteddf.to_numpy()
         self.numrow = self.numpydf.shape[0]
         self.numcold = self.numpydf.shape[1]
-        self.colname2loc = dict(zip(self.converteddf.columns, range(self.numcold)))        
         # Precreate a large number of xgboost models : 
         #  -  firstly we create multiple models so we can push slightly different data at them to get a sense of the 
         #    confidence of prediction by looking at the different results.
         #  - secondly, we need a separate model to predict each column.
         
-        self.models = [[XGBClassifier(verbosity=0, nthread=4) for j in range(self.models_for_confidence)] for i in range(self.numcold)]
+        self.models = dict()
+        for cold in range(self.numcold):  
+            coldname = self.converteddf.columns[cold]
+            if self.coltyped[coldname] == 'raw':
+                print('creating regressor')
+                self.models[cold] = [XGBRegressor(verbosity=0, nthread=4) for j in range(self.models_for_confidence)]
+            
+            else:
+                print('creating classifier')
+                self.models[cold] = [XGBClassifier(verbosity=0, nthread=4) for j in range(self.models_for_confidence)]
  
         # Train multiple times on different subsets of the data to help us get a confidence interval. 
         for modelconf in range(self.models_for_confidence):
@@ -114,6 +123,7 @@ class TrainPredict:
             # Accumulate means and standard deviations of the predictions per column.  Then we throw the detailed prediction data away.
             (self.predictedmeans[:,cold], self.predictedstds[:,cold]) = self.CalcMeanAndDeviation(ytest, self.coltyped[coldname])
         
+        # Convert to dataframes with headers, easier for subsequent processing
         self.predictedmeans = pd.DataFrame(data=self.predictedmeans, columns=self.converteddf.columns)
         self.predictedstds  = pd.DataFrame(data=self.predictedstds,  columns=self.converteddf.columns)
         return(self.predictedmeans, self.predictedstds)       
@@ -140,7 +150,7 @@ class TrainPredict:
                     if cellmean != self.converteddf[coldname][row] and cellstd <= 0.3:
                         self.boolerrors[coldname][row] = True
                 elif self.coltyped[coldname] == 'onehot':
-                    if round(cellmean) != self.converteddf[coldname][row] and cellstd <= 0.3:
+                    if round(cellmean) != self.converteddf[coldname][row]:
                         self.boolerrors[coldname][row] = True                
                 else:
                     # 100% confident prediction?
@@ -165,15 +175,14 @@ class TrainPredict:
         for colsname in self.sourcedf.columns:
        
             for row in range(self.numrow):
-
+                predicted = None
+                
                 # If it's a literal error, print it.
                 if self.coltypes[colsname] == 'raw':
                     coldname = colsname
-                    if self.boolerrors[coldname][row]:                    
-                        print('Raw column ' + colsname + ' row ' + str(row) + 
-                        ': actual=' + str(self.sourcedf[colsname][row]) +
-                        ' predicted=' + str(self.predictedmeans[coldname][row]))
-                    
+                    if self.boolerrors[coldname][row]: 
+                        predicted = str(self.predictedmeans[coldname][row])
+                        
                 elif self.coltypes[colsname] == 'labelencoded':
                     coldname = colsname                
                     if self.boolerrors[coldname][row]:                    
@@ -184,34 +193,34 @@ class TrainPredict:
                         else:
                             predicted = '(various)'
                         
-                        print('Raw column ' + colsname + ' row ' + str(row) + 
-                        ': actual=' + str(self.sourcedf[colsname][row]) +
-                        ' predicted=' + predicted ) 
-
                 elif self.coltypes[colsname] == 'onehot':
-                    # We have to look through all the destination columns, find what this mapped to, and then see
+                    # We have to look through all the destination columns, find what this mapped to (could be multiple), and then see
                     # whether we think that's an error.
                    
-                    boolErrorSeen = False
-                    predicted=[]
-                    for coldname in self.colmaps2d[colsname]:
-                        if self.boolerrors[coldname][row]:
-                            boolErrorSeen = True 
-                            if self.converteddf[coldname][row] == 0:
+                    # Which cell did we originally think it is?  Unless we think that's an error, no need to go further.
+                    coldname = self.colmaps2d[colsname][self.featuremaps[colsname][self.sourcedf[colsname][row]]]
+                    
+                    if self.boolerrors[coldname][row]:                    
+                        predicted=[]
+                        for coldname in self.colmaps2d[colsname]:
+                        
+                            cellmean = self.predictedmeans[coldname][row]
+                            cellstd  = self.predictedstds[coldname][row]
+                            if round(cellmean) == 1.0:
                                 predicted.append(str(self.featuremapd[coldname]))
-                    
-                    if boolErrorSeen:
+                        
                         if len(predicted) > 0:
-                            print('Raw column ' + colsname + ' row ' + str(row) +
-                            ': actual='+ str(self.sourcedf[colsname][row]) +
-                            ' predicted = ' + ','.join(map(str,predicted)) + '')                           
+                            if len(predicted) > 1:
+                                predicted = '(any one of ' + ','.join(map(str,predicted)) + ')'
+                            else:
+                                predicted = str(predicted[0])
                         else:
-                            print('Raw column ' + colsname + ' row ' + str(row) +
-                            ': actual='+ str(self.sourcedf[colsname][row]) +
-                            ' predicted = (not known)')                            
-                    
-                    # str(any(self.boolerrors[self.colmaps2d[colsname]][row])))
-                                      
+                            predicted = '(no clear prediction)'
+
+                if predicted is not None:
+                    print('row ' + str(row) + ' column ' + colsname  + 
+                    ': actual=' + str(self.sourcedf[colsname][row]) +
+                    ' predicted=' + predicted)               
 
 
                     

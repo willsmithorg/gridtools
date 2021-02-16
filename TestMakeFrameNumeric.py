@@ -127,11 +127,11 @@ class TestMakeFrameNumeric(unittest.TestCase):
              'manyvalues': {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 
                             9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N', 14: 'O'}})
 
-        self.assertCountEqual(mfn.featuremaps['country'], ['Germany', 'UK', 'US'])
-        self.assertCountEqual(mfn.featuremaps['currency'], ['EUR', 'GBP', 'MXN', 'USD']);
+        self.assertCountEqual(mfn.featuremaps['country'], {'Germany':0, 'UK':1, 'US':2})
+        self.assertCountEqual(mfn.featuremaps['currency'], {'EUR':0, 'GBP':1, 'MXN':2, 'USD':3});
         
-        self.assertEqual(mfn.featuremaps['manyvalues'],  {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E', 5: 'F', 6: 'G', 7: 'H', 8: 'I', 
-                            9: 'J', 10: 'K', 11: 'L', 12: 'M', 13: 'N', 14: 'O'})
+        self.assertEqual(mfn.featuremaps['manyvalues'],  {'A':0, 'B':1, 'C':2, 'D':3, 'E':4, 'F':5, 'G':6, 'H':7, 'I':8, 
+                            'J':9, 'K':10, 'L':11, 'M':12, 'N':13, 'O':14})
                             
         self.assertEqual(mfn.coltyped, 
             {'country_0': 'onehot', 'country_1': 'onehot', 'country_2': 'onehot', 
