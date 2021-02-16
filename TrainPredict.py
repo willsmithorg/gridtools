@@ -71,7 +71,7 @@ class TrainPredict:
             coldname = self.converteddf.columns[cold]
             if self.coltyped[coldname] == 'raw':
                 print('creating regressor')
-                self.models[cold] = [XGBRegressor(verbosity=0, nthread=4) for j in range(self.models_for_confidence)]
+                self.models[cold] = [XGBClassifier(verbosity=0, nthread=4) for j in range(self.models_for_confidence)]
             
             else:
                 print('creating classifier')

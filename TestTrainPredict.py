@@ -1,7 +1,6 @@
 import unittest
 import pandas as pd
 import numpy as np
-from pandas.util.testing import assert_frame_equal 
 from TrainPredict import TrainPredict
 
 
@@ -44,15 +43,15 @@ class TestMakeFrameNumeric(unittest.TestCase):
         means,stds = tp.Predict(self.data1)
         
         print(means)
-        self.assertTrue(means[['value']].equals(pd.DataFrame([3.0] * 10, columns=['value'])))
-        self.assertTrue(stds[['value']].equals(pd.DataFrame([0.0] * 10, columns=['value'])))
+        pd.testing.assert_frame_equal(means[['value']], pd.DataFrame([3.0] * 10, columns=['value']))
+        pd.testing.assert_frame_equal(stds[['value']], pd.DataFrame([0.0] * 10, columns=['value']))        
 
         # Now some standard normal data should have mean and std approximately == 1.0
         tp = TrainPredict()     
         means,stds = tp.Predict(self.data3)
   
-        self.assertTrue(means[['col1']].equals(pd.DataFrame([50.0] * self.data3_count, columns=['col1'])))
-        self.assertTrue(stds[['col1']].equals(pd.DataFrame([0.0] * self.data3_count, columns=['col1'])))
+        pd.testing.assert_frame_equal(means[['col1']], pd.DataFrame([50.0] * self.data3_count, columns=['col1']))
+        pd.testing.assert_frame_equal(stds[['col1']], pd.DataFrame([0.0] * self.data3_count, columns=['col1']))      
 
         # Check sane means and standard deviations.  This might randomly fail, if so, check and widen tolerances.
         for i in range(self.data3_count):
