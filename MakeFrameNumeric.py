@@ -49,6 +49,7 @@ class MakeFrameNumeric:
             #print('Cardinality: ' + str(cardinality))
             
             # If string, one-hot (if not too many unique values) or feature encode.
+            # TODO what about integers?  Some people use those for categories.  Maybe we can check the cardinality.
             if isinstance(self.inputdf[col][0], str):
                     
                     # Feature

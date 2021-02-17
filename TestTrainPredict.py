@@ -4,7 +4,7 @@ import numpy as np
 from TrainPredict import TrainPredict
 
 
-class TestMakeFrameNumeric(unittest.TestCase):
+class TestTrainPredict(unittest.TestCase):
 
     def setUp(self):    
         # Very predictable and totally constant data.
@@ -22,6 +22,11 @@ class TestMakeFrameNumeric(unittest.TestCase):
         self.data3 = {'col1': [50.0] * self.data3_count,
                       'col2': [200.0] * self.data3_count + np.random.standard_normal(self.data3_count) }
 
+        # Categorical data.
+        self.data4_halfcount = 10
+        self.data4 = {'categor1': ['A']*self.data4_halfcount+['B']*self.data4_halfcount,
+                      'categor2': ['x']*self.data4_halfcount+['y']*self.data4_halfcount}
+                      
         
     def testInitBadParams1(self):
         # Test bad calls to the constructor.
@@ -38,11 +43,10 @@ class TestMakeFrameNumeric(unittest.TestCase):
         tp = TrainPredict()
         self.assertIsInstance(tp, TrainPredict)
 
-    def testSaneMeanStdPredictions(self):
+    def testSaneMeanStdPredictionsNumeric(self):
         tp = TrainPredict()         
         means,stds = tp.Predict(self.data1)
         
-        print(means)
         pd.testing.assert_frame_equal(means[['value']], pd.DataFrame([3.0] * 10, columns=['value']))
         pd.testing.assert_frame_equal(stds[['value']], pd.DataFrame([0.0] * 10, columns=['value']))        
 
@@ -58,13 +62,26 @@ class TestMakeFrameNumeric(unittest.TestCase):
             with self.subTest(i=i):
                 self.assertTrue(180 <= means['col2'][i] <= 220)
                 self.assertTrue(0 <  stds['col2'][i] <= 10)
-        
-    def testSpotBadPoints(self):
+                
+                
+    # There are only 2 classes here so we assume (hardcode) that it will be converted into one-hot encoded columns.                
+    def testSaneMeanStdPredictionsOneHot(self):
+        tp = TrainPredict()         
+        means,stds = tp.Predict(self.data4)
+        # We need to round because the quantity of data is not enough to give us perfect 1.0 / 0.0 predictions.  The ML
+        # is not sure.  But rounding takes us to binary 1.0 and 0.0
+        # If this fails in the future, try slightly increasing self.data4_halfcount and hopefully it will succeed with slightly more data.
+        # If it doesn't increase with self.data4_halfcount set high, we have a genuine problem.
+        pd.testing.assert_frame_equal(round(means[['categor1_0']]), pd.DataFrame([1.0]*self.data4_halfcount+[0.0]*self.data4_halfcount, columns=['categor1_0']))
+        pd.testing.assert_frame_equal(round(means[['categor1_1']]), pd.DataFrame([0.0]*self.data4_halfcount+[1.0]*self.data4_halfcount, columns=['categor1_1']))
+
+
+
+    def testSpotBadPointsNumeric(self):
         # Check we can spot the deliberate errors introduced into column 2.
         # Check we don't find errors anywhere else.
         tp = TrainPredict() 
         boolErrors = tp.SpotErrors(self.data2)
-        #print(boolErrors)
         for i in range(self.data2_count):
             with self.subTest(i=i):
                 if i==0 or i==self.data2_count-1:
@@ -104,8 +121,6 @@ class TestMakeFrameNumeric(unittest.TestCase):
         self.assertTrue(np.allclose(dev, [0.81649658, 0.81649658]))
         
         (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
-        print(mn)
-        print(dev)
         self.assertTrue(np.allclose(mn, [1.0, 3.0]))         # mode returns the first value if there is no mode
         self.assertTrue(np.allclose(dev, [0.66666667, 0.66666667]))
         

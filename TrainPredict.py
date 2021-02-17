@@ -35,7 +35,7 @@ class TrainPredict:
         self.predictedstds = None
         self.boolerrors = None
         
-        # Make the predictions deterministic
+        # Make the predictions deterministic, so unit tests either succeed or fail and don't randomly change each time we run them.
         random.seed(42)
         np.random.seed(42)
         
@@ -57,6 +57,7 @@ class TrainPredict:
         self.featuremapd = mfn.featuremapd   
         self.featuremaps = mfn.featuremaps  
         self.colmaps2d = mfn.colmaps2d
+        self.colmapd2s = mfn.colmapd2s
         
         self.numpydf = self.converteddf.to_numpy()
         self.numrow = self.numpydf.shape[0]
@@ -70,32 +71,53 @@ class TrainPredict:
         for cold in range(self.numcold):  
             coldname = self.converteddf.columns[cold]
             if self.coltyped[coldname] == 'raw':
-                print('creating regressor')
-                self.models[cold] = [XGBClassifier(verbosity=0, nthread=4) for j in range(self.models_for_confidence)]
+                print('column ' + coldname + ': created regressor')
+                self.models[coldname] = [XGBRegressor(verbosity=0, nthread=4, n_estimators=100) for j in range(self.models_for_confidence)]
             
             else:
-                print('creating classifier')
-                self.models[cold] = [XGBClassifier(verbosity=0, nthread=4) for j in range(self.models_for_confidence)]
+                print('column ' + coldname + ': created classifier')
+                self.models[coldname] = [XGBClassifier(verbosity=0, nthread=4, n_estimators=100) for j in range(self.models_for_confidence)]
  
         # Train multiple times on different subsets of the data to help us get a confidence interval. 
         for modelconf in range(self.models_for_confidence):
 
             # We create one model for every column.
             for cold in range(self.numcold):
-                            
+                coldname = self.converteddf.columns[cold] 
+                print('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
                 # The x is all the columns except the y column we are training on.
-                xcols = self.numpydf
-                xtrain = np.delete(xcols, cold, 1)
+                x_all_cols = self.numpydf
+                xtrain = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                    
                 ytrain = self.numpydf[:,cold]
      
                 # Train on a different subset of the data each time to add some randomness.
-                xtrain, xtest, ytrain, ytest = model_selection.train_test_split(xtrain, ytrain, train_size=0.8)
+                xtrain, _, ytrain, _ = model_selection.train_test_split(xtrain, ytrain, train_size=0.8)
                 
                 # print(xtrain)
                 # print(ytrain)
-                self.models[cold][modelconf].fit(xtrain, ytrain)
+                self.models[coldname][modelconf].fit(xtrain, ytrain)
 
-        
+    def __remove_predicted_columns_from_x(self, x_all_cols, coldname):
+        # If we are training on a one-hot column, we have to delete all the other grouped one-hot, because these all came from
+        # the same source column.
+        if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':   
+            coldid_to_remove = column_index(self.converteddf, coldname)        
+            x = np.delete(x_all_cols, coldid_to_remove, 1)
+        elif self.coltyped[coldname] == 'onehot':
+            colsname = self.colmapd2s[coldname]
+            coldnames_to_remove = self.colmaps2d[colsname]
+            coldids_to_remove = column_index(self.converteddf, coldnames_to_remove)
+            #print("Before deletion:")
+            #print(coldid_to_remove)
+            #print(x_all_cols)
+            x = np.delete(x_all_cols, coldids_to_remove, 1)
+            #print("After deletion:")
+            #print(xtrain)
+        else:
+            raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)
+            
+        return x    
+            
     def Predict(self, sourcedf):
 
         # Train, if we haven't already.
@@ -110,15 +132,14 @@ class TrainPredict:
             coldname = self.converteddf.columns[cold]
         
             # The x is all the columns except the y column we are predicting.
-            xcols = self.numpydf
-            xtest = np.delete(xcols, cold, 1)
-        
+            x_all_cols = self.numpydf            
+            xtest = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                            
             ytest = np.zeros((self.numrow, self.models_for_confidence))
 
             # Get multiple predictions back on subtly different training data to give us a variation of results and a confidence interval.
             # We don't accumulate predictions for the entire grid multiple times, because it might take a lot of memory to store.
             for modelconf in range(self.models_for_confidence):                
-                ytest[:,modelconf] = self.models[cold][modelconf].predict(xtest)                
+                ytest[:,modelconf] = self.models[coldname][modelconf].predict(xtest)                
             
             # Accumulate means and standard deviations of the predictions per column.  Then we throw the detailed prediction data away.
             (self.predictedmeans[:,cold], self.predictedstds[:,cold]) = self.CalcMeanAndDeviation(ytest, self.coltyped[coldname])
@@ -176,12 +197,14 @@ class TrainPredict:
        
             for row in range(self.numrow):
                 predicted = None
+                stdev = None
                 
                 # If it's a literal error, print it.
                 if self.coltypes[colsname] == 'raw':
                     coldname = colsname
                     if self.boolerrors[coldname][row]: 
                         predicted = str(self.predictedmeans[coldname][row])
+                        stdev     = str(self.predictedstds[coldname][row])
                         
                 elif self.coltypes[colsname] == 'labelencoded':
                     coldname = colsname                
@@ -220,7 +243,8 @@ class TrainPredict:
                 if predicted is not None:
                     print('row ' + str(row) + ' column ' + colsname  + 
                     ': actual=' + str(self.sourcedf[colsname][row]) +
-                    ' predicted=' + predicted)               
+                    ' predicted=' + predicted + 
+                    (' stdev='+ stdev if stdev is not None else ''))              
 
 
                     
@@ -251,3 +275,10 @@ class TrainPredict:
 
         return (mean, std)
         
+        
+# Helper function to do df.columns.get_loc(colnames) for a list of colnames in one go.
+def column_index(df, query_cols):
+    cols = df.columns.values
+    sidx = np.argsort(cols)
+    return sidx[np.searchsorted(cols,query_cols,sorter=sidx)]
+    
