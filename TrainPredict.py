@@ -21,7 +21,7 @@ class TrainPredict:
         self.sourcedf = None
         self.converteddf = None
         self.numpydf = None
-        self.numrow = 0
+        self.numrow_train = 0
         self.numcold = 0  # Number of destination i.e. converted columns.
         self.coltyped = None
         
@@ -41,6 +41,8 @@ class TrainPredict:
         random.seed(42)
         np.random.seed(42)
         
+        # We can explicitly only predict one row
+        self.singlerowid = None
  
     def Train(self, sourcedf):
     
@@ -62,7 +64,7 @@ class TrainPredict:
         self.colmapd2s = mfn.colmapd2s
         
         self.numpydf = self.converteddf.to_numpy()
-        self.numrow = self.numpydf.shape[0]
+        self.numrow_train = self.numpydf.shape[0]
         self.numcold = self.numpydf.shape[1]
         # Precreate a large number of xgboost models : 
         #  -  firstly we create multiple models so we can push slightly different data at them to get a sense of the 
@@ -135,15 +137,23 @@ class TrainPredict:
             
         return remaining_coldnames
             
-            
-    def Predict(self, sourcedf):
+
+    # Predict all cells in a table, or only a single (destination) column and single row
+    def Predict(self, sourcedf, singlerowid = None):
 
         # Train, if we haven't already.
         if self.models is None:
             self.Train(sourcedf)
+ 
+        # Are we looking for errors in a array of rows the same size as the training data, or just one row?
+        self.singlerowid = singlerowid
+        if self.singlerowid is None:
+            self.numrow_predict = self.numrow_train
+        else:
+            self.numrow_predict = 1            
         
-        self.predictedmeans = np.zeros((self.numrow, self.numcold))
-        self.predictedstds  = np.zeros((self.numrow, self.numcold))
+        self.predictedmeans = np.zeros((self.numrow_predict, self.numcold))
+        self.predictedstds  = np.zeros((self.numrow_predict, self.numcold))
         
         # We create one model prediction for every column.
         for cold in range(self.numcold):  
@@ -152,7 +162,9 @@ class TrainPredict:
             # The x is all the columns except the y column we are predicting.
             x_all_cols = self.numpydf            
             xtest = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                            
-            ytest = np.zeros((self.numrow, self.models_for_confidence))
+            if self.singlerowid is not None:
+                xtest = xtest.loc[self.singlerowid]
+            ytest = np.zeros((self.numrow_predict, self.models_for_confidence))
 
             # Get multiple predictions back on subtly different training data to give us a variation of results and a confidence interval.
             # We don't accumulate predictions for the entire grid multiple times, because it might take a lot of memory to store.
@@ -175,36 +187,55 @@ class TrainPredict:
             self.Predict(sourcedf)
     
         # Initially, we found no errors.
-        self.boolerrors = pd.DataFrame(False, index=np.arange(len(self.converteddf.index)), columns=self.converteddf.columns)
-        
+        if self.singlerowid is None:
+            self.boolerrors = pd.DataFrame(False, index=np.arange(len(self.converteddf.index)), columns=self.converteddf.columns)
+        else:
+            self.boolerrors = pd.DataFrame(False, index=[0], columns=self.converteddf.columns)
+
         for coldname in self.converteddf.columns:
 
-            for row in range(self.numrow):
+            for row in range(self.numrow_predict):
 
-                cellmean = self.predictedmeans[coldname][row]
-                cellstd  = self.predictedstds[coldname][row]
+                # Are we looking for errors in a array of rows the same size as the training data, or just one row?
+                if self.singlerowid is None:
+                    cellmean = self.predictedmeans[coldname][row]
+                    cellstd  = self.predictedstds[coldname][row]                    
+                    actualcellvalue = self.converteddf[coldname][row]
+                else:  
+                    cellmean = self.predictmeans[coldname][0]
+                    cellmean = self.predictedstds[coldname][0]
+                    actualcellvalue = self.converteddf[coldname][self.singlerowid]
+                    
    
                 if self.coltyped[coldname] == 'labelencoded':
                     # If prediction <> actual and we are confident about the prediction
-                    if cellmean != self.converteddf[coldname][row] and cellstd <= self.std_for_single_prediction_labelencoded:
-                        self.boolerrors[coldname][row] = True
+                    if cellmean != actualcellvalue and cellstd <= self.std_for_single_prediction_labelencoded:
+                        self.__set_boolerror_true(coldname, row)
                 elif self.coltyped[coldname] == 'onehot':
-                    if round(cellmean) != self.converteddf[coldname][row]:
-                        self.boolerrors[coldname][row] = True                
+                    if round(cellmean) != actualcellvalue:
+                        self.__set_boolerror_true(coldname, row)
                 else:
                     # 100% confident prediction?
                     if cellstd == 0.0:
-                        if cellmean != self.converteddf[coldname][row]:
-                            self.boolerrors[coldname][row] = True
+                        if cellmean != actualcellvalue:
+                            self.__set_boolerror_true(coldname, row)
                     else:
                         # Not 100% confident prediction, use the zscore to decide if it's an error.
-                        zscore = np.abs(cellmean - self.converteddf[coldname][row]) / cellstd       
+                        zscore = np.abs(cellmean - actualcellvalue) / cellstd       
                         # If bad, flag it as bad
                         if zscore >= self.zscore_for_error:
-                            self.boolerrors[coldname][row] = True
+                            self.__set_boolerror_true(coldname, row)
                     
         return self.boolerrors
-        
+    
+    # The shape of the boolean array depends on whether we are predicting the whole table or just 1 row of it.
+    def __set_boolerror_true(self, coldname, row):
+        if self.singlerowid is None:
+            self.boolerrors[coldname][row] = True
+        else:
+            self.boolerrors[coldname][0] = True
+            
+            
         
     def PrintErrors(self, sourcedf):
         # Spot errors, if we haven't already.
@@ -213,9 +244,15 @@ class TrainPredict:
         
         for colsname in self.sourcedf.columns:
        
-            for row in range(self.numrow):
+            for row in range(self.numrow_predict):
                 predicted = None
                 stdev = None
+ 
+                # Are we looking for errors in a array of rows the same size as the training data, or just one row?
+                if self.singlerowid is None: 
+                    actualcellvalue = self.sourcedf[colsname][row]
+                else:
+                    actualcellvalue = self.sourcedf[colsname][self.singlerowid]
                 
                 # If it's a literal error, print it.
                 if self.coltypes[colsname] == 'raw':
@@ -239,7 +276,7 @@ class TrainPredict:
                     # whether we think that's an error.
                    
                     # Which cell did we originally think it is?  Unless we think that's an error, no need to go further.
-                    coldname = self.colmaps2d[colsname][self.featuremaps[colsname][self.sourcedf[colsname][row]]]
+                    coldname = self.colmaps2d[colsname][self.featuremaps[colsname][actualcellvalue]]
                     
                     if self.boolerrors[coldname][row]:                    
                         predicted=[]
@@ -260,7 +297,7 @@ class TrainPredict:
 
                 if predicted is not None:
                     print('row ' + str(row) + ' column ' + colsname  + 
-                    ': actual=' + str(self.sourcedf[colsname][row]) +
+                    ': actual=' + str(actualcellvalue) +
                     ' predicted=' + predicted + 
                     (' stdev='+ stdev if stdev is not None else ''))              
 
