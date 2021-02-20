@@ -27,8 +27,10 @@ class TrainPredict:
         
         self.models_for_confidence = 10
         self.zscore_for_error = 10
-        
-
+        self.confidence_to_keep_column = 0.25
+        self.std_for_single_prediction_labelencoded = 0.3
+        self.train_data_subset = 0.8
+        self.numthreads_xgboost = 4
 
         self.models = None
         self.predictedmeans = None
@@ -72,11 +74,13 @@ class TrainPredict:
             coldname = self.converteddf.columns[cold]
             if self.coltyped[coldname] == 'raw':
                 print('column ' + coldname + ': created regressor')
-                self.models[coldname] = [XGBRegressor(verbosity=0, nthread=4, n_estimators=100) for j in range(self.models_for_confidence)]
-            
+                self.models[coldname] = [XGBRegressor(verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
+            elif self.coltyped[coldname] == 'onehot':
+                print('column ' + coldname + ': created binary classifier')            
+                self.models[coldname] = [XGBClassifier(verbosity=0, nthread=self.numthreads_xgboost, objective='binary:logistic') for j in range(self.models_for_confidence)]            
             else:
-                print('column ' + coldname + ': created classifier')
-                self.models[coldname] = [XGBClassifier(verbosity=0, nthread=4, n_estimators=100) for j in range(self.models_for_confidence)]
+                print('column ' + coldname + ': created multiclass classifier')
+                self.models[coldname] = [XGBClassifier(verbosity=0, nthread=self.numthreads_xgboost, objective='reg:logistic') for j in range(self.models_for_confidence)]
  
         # Train multiple times on different subsets of the data to help us get a confidence interval. 
         for modelconf in range(self.models_for_confidence):
@@ -91,7 +95,7 @@ class TrainPredict:
                 ytrain = self.numpydf[:,cold]
      
                 # Train on a different subset of the data each time to add some randomness.
-                xtrain, _, ytrain, _ = model_selection.train_test_split(xtrain, ytrain, train_size=0.8)
+                xtrain, _, ytrain, _ = model_selection.train_test_split(xtrain, ytrain, train_size=self.train_data_subset)
                 
                 # print(xtrain)
                 # print(ytrain)
@@ -114,9 +118,23 @@ class TrainPredict:
             #print("After deletion:")
             #print(xtrain)
         else:
-            raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)
-            
+            raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)            
         return x    
+        
+    # Return the list of columns we are left with to predict from, if we are predicting column 'coldname'
+    def __remove_predicted_column_names(self, all_coldnames, coldname):
+        if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':           
+            remaining_coldnames = np.setdiff1d(all_coldnames, coldname)
+        elif self.coltyped[coldname] == 'onehot':
+            colsname = self.colmapd2s[coldname]
+            coldnames_to_remove = self.colmaps2d[colsname]
+            remaining_coldnames = np.setdiff1d(all_coldnames, coldnames_to_remove)
+
+        else:
+            raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)                            
+            
+        return remaining_coldnames
+            
             
     def Predict(self, sourcedf):
 
@@ -168,7 +186,7 @@ class TrainPredict:
    
                 if self.coltyped[coldname] == 'labelencoded':
                     # If prediction <> actual and we are confident about the prediction
-                    if cellmean != self.converteddf[coldname][row] and cellstd <= 0.3:
+                    if cellmean != self.converteddf[coldname][row] and cellstd <= self.std_for_single_prediction_labelencoded:
                         self.boolerrors[coldname][row] = True
                 elif self.coltyped[coldname] == 'onehot':
                     if round(cellmean) != self.converteddf[coldname][row]:
@@ -211,7 +229,7 @@ class TrainPredict:
                     if self.boolerrors[coldname][row]:                    
                     
                         # What is the predicted value?  If std < 0.3 we are close to a single prediction
-                        if self.predictedstds[coldname][row] < 0.3:
+                        if self.predictedstds[coldname][row] < self.std_for_single_prediction_labelencoded:
                             predicted = str(self.featuremapd[coldname][round(self.predictedmeans[coldname][row])])
                         else:
                             predicted = '(various)'
@@ -274,7 +292,30 @@ class TrainPredict:
                 std  = np.std(ypredictions, axis=1)
 
         return (mean, std)
+     
+    def GetBestColumnsToPredict(self, coldname):
+        if self.boolerrors is None:
+            raise(RuntimeError, "Should not call GetBestColumns before running Prediction")
         
+        coldnames_learnt = self.__remove_predicted_column_names(self.converteddf.columns.values, coldname)
+        
+        # Take the average feature importance across all models for each column.
+        # If it's high, report this as a useful column.
+        bestcoldnames = []
+        for coldid in range(len(coldnames_learnt)):
+            total_confidence = 0.0 
+            for m in range(self.models_for_confidence):
+                total_confidence += self.models[coldname][m].feature_importances_[coldid]
+            
+            total_confidence /= self.models_for_confidence
+            
+            if total_confidence >= self.confidence_to_keep_column:
+                bestcoldnames.append(coldnames_learnt[coldid])
+        
+        if len(bestcoldnames):
+            print('Most useful columns to predict ''' + coldname + ' were ''' + str(bestcoldnames))
+            
+            
         
 # Helper function to do df.columns.get_loc(colnames) for a list of colnames in one go.
 def column_index(df, query_cols):
