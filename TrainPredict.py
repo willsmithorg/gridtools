@@ -17,14 +17,19 @@ class TrainPredict:
 
     def __init__(self):
          
-
+        # Source dataframe, what the user passed in
         self.sourcedf = None
+        # Converted dataframe, label encoded and 1-hot encoded
         self.converteddf = None
+        # Numpy equivalent of converted dataframe, ready for XGBoost
         self.numpydf = None
-        self.numrow_train = 0
-        self.numcold = 0  # Number of destination i.e. converted columns.
-        self.coltyped = None
         
+        # Precalculate for ease of reference
+        self.numrow_train = 0
+        self.numrow_predict = 0
+        self.numcold = 0  # Number of destination i.e. converted columns.
+        
+        # Constants
         self.models_for_confidence = 10
         self.zscore_for_error = 10
         self.confidence_to_keep_column = 0.25
