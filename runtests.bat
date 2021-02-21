@@ -6,3 +6,5 @@ REM
 @echo off
 python TestMakeFrameNumeric.py
 python TestTrainPredict.py
+python TestCalcMeanStdPredictions.py
+python TestSpotErrors.py
