@@ -60,7 +60,7 @@ class MakeFrameNumeric:
                     if cardinality > self.maximum_cardinality_for_one_hot_encode:
                         self.converteddf[col] = feature
                         self.colmapd2s[col] = col
-                        self.colmaps2d[col] = col
+                        self.colmaps2d[col] = [col]
                         self.featuremapd[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
                         self.featuremaps[col] = dict(zip(label_encoder.classes_, range(len(label_encoder.classes_)))) 
                         self.coltyped[col] = 'labelencoded'
@@ -90,7 +90,7 @@ class MakeFrameNumeric:
                 # Already numeric, copy directly.
                 self.converteddf[col] = self.inputdf[col]
                 self.colmapd2s[col] = col                
-                self.colmaps2d[col] = col
+                self.colmaps2d[col] = [col]
                 self.featuremapd[col] = None                
                 self.featuremaps[col] = None
                 self.coltyped[col] = 'raw'

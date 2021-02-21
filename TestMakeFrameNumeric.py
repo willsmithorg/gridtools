@@ -118,7 +118,7 @@ class TestMakeFrameNumeric(unittest.TestCase):
         self.assertEqual(mfn.colmaps2d, 
             {'country': ['country_0', 'country_1', 'country_2' ], 
              'currency': ['currency_0', 'currency_1', 'currency_2', 'currency_3' ], 
-             'manyvalues': 'manyvalues'})            
+             'manyvalues': ['manyvalues']})            
             
         # The featuremap is a mapping from converted value to source token, per destination column.
         self.assertEqual(mfn.featuremapd, 

@@ -31,16 +31,11 @@ class TrainPredict:
         
         # Constants
         self.models_for_confidence = 10
-        self.zscore_for_error = 10
-        self.confidence_to_keep_column = 0.25
-        self.std_for_single_prediction_labelencoded = 0.3
         self.train_data_subset = 0.8
         self.numthreads_xgboost = 4
 
         self.models = None
-        self.predictedmeans = None
-        self.predictedstds = None
-        self.boolerrors = None
+
         
         # Make the predictions deterministic, so unit tests either succeed or fail and don't randomly change each time we run them.
         random.seed(42)
@@ -54,10 +49,16 @@ class TrainPredict:
         if (isinstance(sourcedf, dict)):
             sourcedf = pd.DataFrame(sourcedf)
             
+        if sourcedf is self.sourcedf:
+            # We trained on this already.  Return early.
+            # Caveat - maybe soembody changed the meta parameters above.
+            return
+            
         if( not isinstance(sourcedf, pd.DataFrame)):
             raise(TypeError,'df must be a DataFrame not a ' + str(type(sourcedf)))
         
-        self.sourcedf    = sourcedf        
+        self.sourcedf    = sourcedf       
+        
         mfn = MakeFrameNumeric()
         self.converteddf = mfn.Convert(sourcedf)
         # Read some other mappings out of the conversion
@@ -80,33 +81,30 @@ class TrainPredict:
         for cold in range(self.numcold):  
             coldname = self.converteddf.columns[cold]
             if self.coltyped[coldname] == 'raw':
-                print('column ' + coldname + ': created regressor')
+                #print('column ' + coldname + ': created regressor')
                 self.models[coldname] = [XGBRegressor(verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
             elif self.coltyped[coldname] == 'onehot':
-                print('column ' + coldname + ': created binary classifier')            
+                #print('column ' + coldname + ': created binary classifier')            
                 self.models[coldname] = [XGBClassifier(verbosity=0, nthread=self.numthreads_xgboost, objective='binary:logistic') for j in range(self.models_for_confidence)]            
             else:
-                print('column ' + coldname + ': created multiclass classifier')
+                #print('column ' + coldname + ': created multiclass classifier')
                 self.models[coldname] = [XGBClassifier(verbosity=0, nthread=self.numthreads_xgboost, objective='reg:logistic') for j in range(self.models_for_confidence)]
  
-        # Train multiple times on different subsets of the data to help us get a confidence interval. 
-        for modelconf in range(self.models_for_confidence):
+            print('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
 
-            # We create one model for every column.
-            for cold in range(self.numcold):
-                coldname = self.converteddf.columns[cold] 
-                print('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
-                # The x is all the columns except the y column we are training on.
-                x_all_cols = self.numpydf
-                xtrain = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                    
-                ytrain = self.numpydf[:,cold]
-     
+            # The x is all the columns except the y column we are training on.
+            x_all_cols = self.numpydf
+            xtrain = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                    
+            ytrain = self.numpydf[:,cold]
+            
+             # Train multiple times on different subsets of the data to help us get a confidence interval. 
+            for modelconf in range(self.models_for_confidence):
+             
                 # Train on a different subset of the data each time to add some randomness.
-                xtrain, _, ytrain, _ = model_selection.train_test_split(xtrain, ytrain, train_size=self.train_data_subset)
-                
+                xtrain_sub, _, ytrain_sub, _ = model_selection.train_test_split(xtrain, ytrain, train_size=self.train_data_subset)                
                 # print(xtrain)
                 # print(ytrain)
-                self.models[coldname][modelconf].fit(xtrain, ytrain)
+                self.models[coldname][modelconf].fit(xtrain_sub, ytrain_sub)
 
     def __remove_predicted_columns_from_x(self, x_all_cols, coldname):
         # If we are training on a one-hot column, we have to delete all the other grouped one-hot, because these all came from
@@ -128,236 +126,47 @@ class TrainPredict:
             raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)            
         return x    
         
-    # Return the list of columns we are left with to predict from, if we are predicting column 'coldname'
-    def __remove_predicted_column_names(self, all_coldnames, coldname):
-        if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':           
-            remaining_coldnames = np.setdiff1d(all_coldnames, coldname)
-        elif self.coltyped[coldname] == 'onehot':
-            colsname = self.colmapd2s[coldname]
-            coldnames_to_remove = self.colmaps2d[colsname]
-            remaining_coldnames = np.setdiff1d(all_coldnames, coldnames_to_remove)
+    
 
-        else:
-            raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)                            
-            
-        return remaining_coldnames
-            
+    # Predict just 1 column in the table, and optionally just a single row.
+    def Predict(self, sourcedf, colsname, singlerowid = None):
 
-    # Predict all cells in a table, or only a single (destination) column and single row
-    def Predict(self, sourcedf, singlerowid = None):
-
-        # Train, if we haven't already.
-        if self.models is None:
-            self.Train(sourcedf)
+        # Train.  It will return quickly if we already trained on this data.
+        self.Train(sourcedf)
  
+        if not colsname in self.sourcedf.columns:
+            raise ValueError('Source column ' + colsname + ' not in source column list' + str(self.sourcedf.columns))
+            
         # Are we looking for errors in a array of rows the same size as the training data, or just one row?
         self.singlerowid = singlerowid
         if self.singlerowid is None:
             self.numrow_predict = self.numrow_train
         else:
+            if singlerowid > self.numrow_train:
+                raise ValueError('Cannot train on row ' + str(singlerowid) + ' because the training data only had ' + str(self.numrow_train) + ' rows')
+
             self.numrow_predict = 1            
+         
+        # We create one model prediction for every destination column mapped from the source column.
+
+        ytest = np.zeros((len(self.colmaps2d[colsname]), self.models_for_confidence, self.numrow_predict))
         
-        self.predictedmeans = np.zeros((self.numrow_predict, self.numcold))
-        self.predictedstds  = np.zeros((self.numrow_predict, self.numcold))
-        
-        # We create one model prediction for every column.
-        for cold in range(self.numcold):  
-            coldname = self.converteddf.columns[cold]
-        
+        for cold in range(len(self.colmaps2d[colsname])): 
+            coldname = self.colmaps2d[colsname][cold]
             # The x is all the columns except the y column we are predicting.
             x_all_cols = self.numpydf            
             xtest = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                            
             if self.singlerowid is not None:
-                xtest = xtest.loc[self.singlerowid]
-            ytest = np.zeros((self.numrow_predict, self.models_for_confidence))
+                xtest = xtest[self.singlerowid:self.singlerowid+1,:]        # Weird indexing just cuts one row out and makes sure the dimensions of the numpy array becomes 1 * num columns
 
             # Get multiple predictions back on subtly different training data to give us a variation of results and a confidence interval.
             # We don't accumulate predictions for the entire grid multiple times, because it might take a lot of memory to store.
-            for modelconf in range(self.models_for_confidence):                
-                ytest[:,modelconf] = self.models[coldname][modelconf].predict(xtest)                
-            
-            # Accumulate means and standard deviations of the predictions per column.  Then we throw the detailed prediction data away.
-            (self.predictedmeans[:,cold], self.predictedstds[:,cold]) = self.CalcMeanAndDeviation(ytest, self.coltyped[coldname])
+            for modelconf in range(self.models_for_confidence):   
+                ytest[cold,modelconf,:] = self.models[coldname][modelconf].predict(xtest)                
         
-        # Convert to dataframes with headers, easier for subsequent processing
-        self.predictedmeans = pd.DataFrame(data=self.predictedmeans, columns=self.converteddf.columns)
-        self.predictedstds  = pd.DataFrame(data=self.predictedstds,  columns=self.converteddf.columns)
-        return(self.predictedmeans, self.predictedstds)       
-            
-    
-    def SpotErrors(self, sourcedf):
-    
-        # Predict, if we haven't already.
-        if self.predictedmeans is None:
-            self.Predict(sourcedf)
-    
-        # Initially, we found no errors.
-        if self.singlerowid is None:
-            self.boolerrors = pd.DataFrame(False, index=np.arange(len(self.converteddf.index)), columns=self.converteddf.columns)
-        else:
-            self.boolerrors = pd.DataFrame(False, index=[0], columns=self.converteddf.columns)
-
-        for coldname in self.converteddf.columns:
-
-            for row in range(self.numrow_predict):
-
-                # Are we looking for errors in a array of rows the same size as the training data, or just one row?
-                if self.singlerowid is None:
-                    cellmean = self.predictedmeans[coldname][row]
-                    cellstd  = self.predictedstds[coldname][row]                    
-                    actualcellvalue = self.converteddf[coldname][row]
-                else:  
-                    cellmean = self.predictmeans[coldname][0]
-                    cellmean = self.predictedstds[coldname][0]
-                    actualcellvalue = self.converteddf[coldname][self.singlerowid]
-                    
-   
-                if self.coltyped[coldname] == 'labelencoded':
-                    # If prediction <> actual and we are confident about the prediction
-                    if cellmean != actualcellvalue and cellstd <= self.std_for_single_prediction_labelencoded:
-                        self.__set_boolerror_true(coldname, row)
-                elif self.coltyped[coldname] == 'onehot':
-                    if round(cellmean) != actualcellvalue:
-                        self.__set_boolerror_true(coldname, row)
-                else:
-                    # 100% confident prediction?
-                    if cellstd == 0.0:
-                        if cellmean != actualcellvalue:
-                            self.__set_boolerror_true(coldname, row)
-                    else:
-                        # Not 100% confident prediction, use the zscore to decide if it's an error.
-                        zscore = np.abs(cellmean - actualcellvalue) / cellstd       
-                        # If bad, flag it as bad
-                        if zscore >= self.zscore_for_error:
-                            self.__set_boolerror_true(coldname, row)
-                    
-        return self.boolerrors
-    
-    # The shape of the boolean array depends on whether we are predicting the whole table or just 1 row of it.
-    def __set_boolerror_true(self, coldname, row):
-        if self.singlerowid is None:
-            self.boolerrors[coldname][row] = True
-        else:
-            self.boolerrors[coldname][0] = True
-            
-            
-        
-    def PrintErrors(self, sourcedf):
-        # Spot errors, if we haven't already.
-        if self.boolerrors is None:
-            self.SpotErrors(sourcedf)
-        
-        for colsname in self.sourcedf.columns:
-       
-            for row in range(self.numrow_predict):
-                predicted = None
-                stdev = None
- 
-                # Are we looking for errors in a array of rows the same size as the training data, or just one row?
-                if self.singlerowid is None: 
-                    actualcellvalue = self.sourcedf[colsname][row]
-                else:
-                    actualcellvalue = self.sourcedf[colsname][self.singlerowid]
-                
-                # If it's a literal error, print it.
-                if self.coltypes[colsname] == 'raw':
-                    coldname = colsname
-                    if self.boolerrors[coldname][row]: 
-                        predicted = str(self.predictedmeans[coldname][row])
-                        stdev     = str(self.predictedstds[coldname][row])
-                        
-                elif self.coltypes[colsname] == 'labelencoded':
-                    coldname = colsname                
-                    if self.boolerrors[coldname][row]:                    
-                    
-                        # What is the predicted value?  If std < 0.3 we are close to a single prediction
-                        if self.predictedstds[coldname][row] < self.std_for_single_prediction_labelencoded:
-                            predicted = str(self.featuremapd[coldname][round(self.predictedmeans[coldname][row])])
-                        else:
-                            predicted = '(various)'
-                        
-                elif self.coltypes[colsname] == 'onehot':
-                    # We have to look through all the destination columns, find what this mapped to (could be multiple), and then see
-                    # whether we think that's an error.
-                   
-                    # Which cell did we originally think it is?  Unless we think that's an error, no need to go further.
-                    coldname = self.colmaps2d[colsname][self.featuremaps[colsname][actualcellvalue]]
-                    
-                    if self.boolerrors[coldname][row]:                    
-                        predicted=[]
-                        for coldname in self.colmaps2d[colsname]:
-                        
-                            cellmean = self.predictedmeans[coldname][row]
-                            cellstd  = self.predictedstds[coldname][row]
-                            if round(cellmean) == 1.0:
-                                predicted.append(str(self.featuremapd[coldname]))
-                        
-                        if len(predicted) > 0:
-                            if len(predicted) > 1:
-                                predicted = '(any one of ' + ','.join(map(str,predicted)) + ')'
-                            else:
-                                predicted = str(predicted[0])
-                        else:
-                            predicted = '(no clear prediction)'
-
-                if predicted is not None:
-                    print('row ' + str(row) + ' column ' + colsname  + 
-                    ': actual=' + str(actualcellvalue) +
-                    ' predicted=' + predicted + 
-                    (' stdev='+ stdev if stdev is not None else ''))              
-
-
-                    
-                                 
-        
-    def CalcMeanAndDeviation(self, ypredictions, coltype):
-                
-        # If the column is a labelencoded, just calculate the standard deviation of boolean difference from the most common value
-        if coltype == 'labelencoded':
-            # Calculate the most common value
-            if isinstance(ypredictions, list) or len(ypredictions.shape) == 1:
-                mean = scipy.stats.mode(ypredictions).mode
-                # And calculate the variation as mean deviation away from that, in boolean terms (different = 1, same = 0)
-                std = np.mean(ypredictions != mean)
-            else:
-                assert(False, "weird")
-                mean = scipy.stats.mode(ypredictions, axis=1).mode
-                std = np.mean(ypredictions != mean, axis=1)
-                mean = mean.reshape(-1)
-        else:
-            # Otherwise, conventional mean and standard deviation.
-            if isinstance(ypredictions, list) or len(ypredictions.shape) == 1:
-                mean = np.mean(ypredictions)           
-                std  = np.std(ypredictions)
-            else:
-                mean = np.mean(ypredictions, axis=1)           
-                std  = np.std(ypredictions, axis=1)
-
-        return (mean, std)
-     
-    def GetBestColumnsToPredict(self, coldname):
-        if self.boolerrors is None:
-            raise(RuntimeError, "Should not call GetBestColumns before running Prediction")
-        
-        coldnames_learnt = self.__remove_predicted_column_names(self.converteddf.columns.values, coldname)
-        
-        # Take the average feature importance across all models for each column.
-        # If it's high, report this as a useful column.
-        bestcoldnames = []
-        for coldid in range(len(coldnames_learnt)):
-            total_confidence = 0.0 
-            for m in range(self.models_for_confidence):
-                total_confidence += self.models[coldname][m].feature_importances_[coldid]
-            
-            total_confidence /= self.models_for_confidence
-            
-            if total_confidence >= self.confidence_to_keep_column:
-                bestcoldnames.append(coldnames_learnt[coldid])
-        
-        if len(bestcoldnames):
-            print('Most useful columns to predict ''' + coldname + ' were ''' + str(bestcoldnames))
-            
-            
+        # A 3-d array of predictions
+        return ytest
+          
         
 # Helper function to do df.columns.get_loc(colnames) for a list of colnames in one go.
 def column_index(df, query_cols):

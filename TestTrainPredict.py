@@ -43,87 +43,34 @@ class TestTrainPredict(unittest.TestCase):
         tp = TrainPredict()
         self.assertIsInstance(tp, TrainPredict)
 
-    def testSaneMeanStdPredictionsNumeric(self):
-        tp = TrainPredict()         
-        means,stds = tp.Predict(self.data1)
+    
+    def testPredictWrongColErrors(self):
+        tp = TrainPredict()
+        with self.assertRaises(ValueError):
+            ytest = tp.Predict(self.data1, "badcolumnname")
+
+    # Prediction should be n_categories(e.g. onehot) * nmodels * nrows.
+    def testPredictionsShape(self):
+        tp = TrainPredict()
+        tp.models_for_confidence = 8
+        ytest = tp.Predict(self.data1, 'id')
+        self.assertEqual(ytest.shape, (1, 8, 10))          # 8 copies of the model, trained on 10 rows.
         
-        pd.testing.assert_frame_equal(means[['value']], pd.DataFrame([3.0] * 10, columns=['value']))
-        pd.testing.assert_frame_equal(stds[['value']], pd.DataFrame([0.0] * 10, columns=['value']))        
+        ytest = tp.Predict(self.data1, 'value')
+        self.assertEqual(ytest.shape, (1, 8, 10))          # 8 copies of the model, trained on 10 rows.
+         
+        # Categorical data should have been 1-hot encoded.
+        ytest = tp.Predict(self.data4, 'categor1') 
+        self.assertEqual(ytest.shape, (2, 8, 2 * self.data4_halfcount))       
 
-        # Now some standard normal data should have mean and std approximately == 1.0
-        tp = TrainPredict()     
-        means,stds = tp.Predict(self.data3)
-  
-        pd.testing.assert_frame_equal(means[['col1']], pd.DataFrame([50.0] * self.data3_count, columns=['col1']))
-        pd.testing.assert_frame_equal(stds[['col1']], pd.DataFrame([0.0] * self.data3_count, columns=['col1']))      
-
-        # Check sane means and standard deviations.  This might randomly fail, if so, check and widen tolerances.
-        for i in range(self.data3_count):
-            with self.subTest(i=i):
-                self.assertTrue(180 <= means['col2'][i] <= 220)
-                self.assertTrue(0 <  stds['col2'][i] <= 10)
+        # Train on only 1 row - the last row.
+        ytest = tp.Predict(self.data4, 'categor1', singlerowid=9) 
+        self.assertEqual(ytest.shape, (2, 8, 1))       
+        
+        # Try to train on row 1-million.
+        with self.assertRaises(ValueError):
+            ytest = tp.Predict(self.data4, 'categor1', singlerowid=1000000) 
                 
-                
-    # There are only 2 classes here so we assume (hardcode) that it will be converted into one-hot encoded columns.                
-    def testSaneMeanStdPredictionsOneHot(self):
-        tp = TrainPredict()         
-        means,stds = tp.Predict(self.data4)
-        # We need to round because the quantity of data is not enough to give us perfect 1.0 / 0.0 predictions.  The ML
-        # is not sure.  But rounding takes us to binary 1.0 and 0.0
-        # If this fails in the future, try slightly increasing self.data4_halfcount and hopefully it will succeed with slightly more data.
-        # If it doesn't increase with self.data4_halfcount set high, we have a genuine problem.
-        pd.testing.assert_frame_equal(round(means[['categor1_0']]), pd.DataFrame([1.0]*self.data4_halfcount+[0.0]*self.data4_halfcount, columns=['categor1_0']))
-        pd.testing.assert_frame_equal(round(means[['categor1_1']]), pd.DataFrame([0.0]*self.data4_halfcount+[1.0]*self.data4_halfcount, columns=['categor1_1']))
-
-
-
-    def testSpotBadPointsNumeric(self):
-        # Check we can spot the deliberate errors introduced into column 2.
-        # Check we don't find errors anywhere else.
-        tp = TrainPredict() 
-        boolErrors = tp.SpotErrors(self.data2)
-        for i in range(self.data2_count):
-            with self.subTest(i=i):
-                if i==0 or i==self.data2_count-1:
-                    self.assertTrue(boolErrors['y'][i])
-                else:
-                    self.assertFalse(boolErrors['y'][i])
-     
-     
-    def testCalcMeanAndDeviation(self):    
-        y = [3.0] * 100
-        tp = TrainPredict()              
-        (mn,dev) = tp.CalcMeanAndDeviation(y, 'raw')
-        self.assertEqual(mn, 3.0)
-        self.assertEqual(dev, 0)
-        
-        (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
-        self.assertEqual(mn, 3.0)
-        self.assertEqual(dev, 0)
-        
-        # Normal mean and starndard deviation.
-        y = [3.0] * 100 + [100]
-        (mn,dev) = tp.CalcMeanAndDeviation(y, 'raw')        
-        self.assertAlmostEqual(mn, 3.9603960396039604)
-        self.assertAlmostEqual(dev, 9.603960396039602)
-        
-        # If it's a label encoded field, the mean is the mode, and the standard deviation is lower because its' based
-        # on the average boolean difference.
-        (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
-        self.assertEqual(mn, 3)
-        self.assertAlmostEqual(dev, 0.009900990099009901)
-        
-        # Now repeat on numpy arrays.
-        y = np.array([[1.0, 2.0, 3.0], 
-                     [3.0, 4.0, 5.0]])
-        (mn,dev) = tp.CalcMeanAndDeviation(y, 'raw')
-        self.assertTrue(np.allclose(mn, [2.0, 4.0]))
-        self.assertTrue(np.allclose(dev, [0.81649658, 0.81649658]))
-        
-        (mn,dev) = tp.CalcMeanAndDeviation(y, 'labelencoded')
-        self.assertTrue(np.allclose(mn, [1.0, 3.0]))         # mode returns the first value if there is no mode
-        self.assertTrue(np.allclose(dev, [0.66666667, 0.66666667]))
-        
         
         
 if __name__ == '__main__':
