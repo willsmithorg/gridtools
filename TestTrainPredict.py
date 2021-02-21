@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 from TrainPredict import TrainPredict
 
+import logging
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 
 class TestTrainPredict(unittest.TestCase):
 

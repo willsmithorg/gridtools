@@ -3,6 +3,9 @@ import scipy as scipy
 import random
 import numpy as np
 
+import logging
+logging.basicConfig(level=logging.INFO datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 
 
 class Explain:

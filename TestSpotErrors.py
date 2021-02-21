@@ -2,7 +2,11 @@ import unittest
 import pandas as pd
 import numpy as np
 from TrainPredict import TrainPredict
+from CalcMeanStdPredictions import CalcMeanStdPredictions
 from SpotErrors import SpotErrors
+
+import logging
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
 class TestSpotErrors(unittest.TestCase):
 
@@ -11,6 +15,7 @@ class TestSpotErrors(unittest.TestCase):
         # Very predictable and totally constant data.
         self.data1 = {'id': np.arange(10),
                  'value': [3.0] * 10}
+        self.data1_count = len(self.data1['id'])
         
         # Some predictable data in y.  Mess up 2 items, index 0 and last, and see if we can find them.
         self.data2 = {'x1': [  100,  100,100,100,100,100,100,100,                  200,200,200,200,200,200,200,  200 ],
@@ -29,12 +34,41 @@ class TestSpotErrors(unittest.TestCase):
                       'categor2': ['x']*self.data4_halfcount+['y']*self.data4_halfcount}
    
    
+    def testNoBadPointsInPredictableData(self):
+        tp = TrainPredict()
+        ytest = tp.Predict(self.data1, 'value')
+        cms = CalcMeanStdPredictions()
+        means,stds = cms.Calc(tp, ytest, 'value')
+        
+        se = SpotErrors()
+        boolErrors = se.Spot(tp, means, stds, 'value')
+        
+        logging.debug(boolErrors)
+        # Check boolErrors is the correct shape
+        self.assertEqual(boolErrors.shape, (self.data1_count,1))  # 16 rows 1 column
+        
+        # The predictable array should have no errors.
+        for i in range(self.data1_count):        
+            with self.subTest(i=i):
+                self.assertFalse(boolErrors['value'][i])            
+                
+                
 
     def testSpotBadPointsNumeric(self):
         # Check we can spot the deliberate errors introduced into column 2.
         # Check we don't find errors anywhere else.
-        tp = TrainPredict() 
-        boolErrors = tp.SpotErrors(self.data2)
+        tp = TrainPredict()
+        ytest = tp.Predict(self.data2, 'y')
+        cms = CalcMeanStdPredictions()
+        means,stds = cms.Calc(tp, ytest, 'y')
+        
+        se = SpotErrors()
+        boolErrors = se.Spot(tp, means, stds, 'y')
+
+        # Check boolErrors is the correct shape
+        self.assertEqual(boolErrors.shape, (self.data2_count,1))  # 16 rows 1 column
+        
+        
         for i in range(self.data2_count):
             with self.subTest(i=i):
                 if i==0 or i==self.data2_count-1:
@@ -43,4 +77,50 @@ class TestSpotErrors(unittest.TestCase):
                     self.assertFalse(boolErrors['y'][i])
    
 
+    def testSpotBadPointsNumericSingleRow(self):
+        # If we just test on row 0, we shuold get  error.
+        tp = TrainPredict()
+        ytest = tp.Predict(self.data2, 'y', singlerowid = 0)
+        cms = CalcMeanStdPredictions()
+        means,stds = cms.Calc(tp, ytest, 'y')        
+        se = SpotErrors()
+        boolErrors = se.Spot(tp, means, stds, 'y', singlerowid = 0)
 
+        # Check boolErrors is the correct shape
+        self.assertEqual(boolErrors.shape, (1,1))  # 1 rows 1 column   
+        # And that we get error=True
+        self.assertTrue(boolErrors['y'][0])
+
+   
+        # If we just test on row 1, we shuold get no error.
+        tp = TrainPredict()
+        ytest = tp.Predict(self.data2, 'y', singlerowid = 1)
+        cms = CalcMeanStdPredictions()
+        means,stds = cms.Calc(tp, ytest, 'y')        
+        se = SpotErrors()
+        boolErrors = se.Spot(tp, means, stds, 'y', singlerowid = 1)
+
+        # Check boolErrors is the correct shape
+        self.assertEqual(boolErrors.shape, (1,1))  # 1 rows 1 column   
+        # And that we get error=False
+        self.assertFalse(boolErrors['y'][0])
+        
+
+        # If we just test on end row, we shuold get  error.
+        tp = TrainPredict()
+        ytest = tp.Predict(self.data2, 'y', singlerowid = self.data2_count-1)
+        cms = CalcMeanStdPredictions()
+        means,stds = cms.Calc(tp, ytest, 'y')        
+        se = SpotErrors()
+        boolErrors = se.Spot(tp, means, stds, 'y', singlerowid = self.data2_count-1)
+
+        # Check boolErrors is the correct shape
+        self.assertEqual(boolErrors.shape, (1,1))  # 1 rows 1 column   
+        # And that we get error=True
+        self.assertTrue(boolErrors['y'][0])
+        
+   
+         
+if __name__ == '__main__':
+    unittest.main()
+    

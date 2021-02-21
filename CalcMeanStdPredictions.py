@@ -4,6 +4,9 @@ import numpy as np
 import scipy
 from TrainPredict import TrainPredict
 
+import logging
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 
 class CalcMeanStdPredictions:
 
@@ -30,8 +33,8 @@ class CalcMeanStdPredictions:
         for cold in range(len(coldnames)): 
             coldname = self.tp.colmaps2d[colsname][cold]
             # Accumulate means and standard deviations of the predictions per column.
-            #print(ytest.shape)
-            #print(ytest[cold,:,:].shape)
+            #logging.debug(ytest.shape)
+            #logging.debug(ytest[cold,:,:].shape)
             self.predictedmeans[:,cold], self.predictedstds[:,cold] = self._CalcMeanAndDeviation(ytest[cold,:,:], self.tp.coltyped[coldname])
 
 
@@ -58,7 +61,11 @@ class CalcMeanStdPredictions:
         else:
             # Otherwise, conventional mean and standard deviation.   This also works for onehot because we only
             # do 1 column at a time.
-            mean = np.mean(ypredictions_single_col, axis=0, keepdims=True)           
+            mean = np.mean(ypredictions_single_col, axis=0, keepdims=True) 
+            # mean = scipy.stats.mode(ypredictions_single_col).mode
+
+            logging.debug('y predictions:')
+            logging.debug(ypredictions_single_col)
             std  = np.std(ypredictions_single_col, axis=0, keepdims=True)
             
                 

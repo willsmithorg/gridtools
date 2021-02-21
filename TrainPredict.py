@@ -3,6 +3,9 @@ import scipy as scipy
 import random
 import numpy as np
 import sklearn.model_selection as model_selection
+import logging
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 from xgboost import XGBClassifier, XGBRegressor, DMatrix
 from MakeFrameNumeric import MakeFrameNumeric
 
@@ -31,11 +34,15 @@ class TrainPredict:
         
         # Constants
         self.models_for_confidence = 10
-        self.train_data_subset = 0.8
+        self.train_data_subset = 0.75
+        self.xgboost_subsample = 1
         self.numthreads_xgboost = 4
+        self.xgboost_tree_method='auto' # gpu_hist = use gpu.   auto = default.
 
+        # Store all the computed models
         self.models = None
 
+        
         
         # Make the predictions deterministic, so unit tests either succeed or fail and don't randomly change each time we run them.
         random.seed(42)
@@ -81,16 +88,16 @@ class TrainPredict:
         for cold in range(self.numcold):  
             coldname = self.converteddf.columns[cold]
             if self.coltyped[coldname] == 'raw':
-                #print('column ' + coldname + ': created regressor')
-                self.models[coldname] = [XGBRegressor(verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
+                #logging.debug('column ' + coldname + ': created regressor')
+                self.models[coldname] = [XGBRegressor(tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
             elif self.coltyped[coldname] == 'onehot':
-                #print('column ' + coldname + ': created binary classifier')            
-                self.models[coldname] = [XGBClassifier(verbosity=0, nthread=self.numthreads_xgboost, objective='binary:logistic') for j in range(self.models_for_confidence)]            
+                #logging.debug('column ' + coldname + ': created binary classifier')            
+                self.models[coldname] = [XGBClassifier(tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='binary:logistic') for j in range(self.models_for_confidence)]            
             else:
-                #print('column ' + coldname + ': created multiclass classifier')
-                self.models[coldname] = [XGBClassifier(verbosity=0, nthread=self.numthreads_xgboost, objective='reg:logistic') for j in range(self.models_for_confidence)]
+                #logging.debug('column ' + coldname + ': created multiclass classifier')
+                self.models[coldname] = [XGBClassifier(tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:logistic') for j in range(self.models_for_confidence)]
  
-            print('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
+            logging.debug('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
 
             # The x is all the columns except the y column we are training on.
             x_all_cols = self.numpydf
@@ -101,9 +108,14 @@ class TrainPredict:
             for modelconf in range(self.models_for_confidence):
              
                 # Train on a different subset of the data each time to add some randomness.
-                xtrain_sub, _, ytrain_sub, _ = model_selection.train_test_split(xtrain, ytrain, train_size=self.train_data_subset)                
-                # print(xtrain)
-                # print(ytrain)
+                if self.train_data_subset < 1.0:
+                    xtrain_sub, _, ytrain_sub, _ = model_selection.train_test_split(xtrain, ytrain, train_size=self.train_data_subset)                
+                else:
+                    xtrain_sub = xtrain
+                    ytrain_sub = ytrain
+
+                # logging.debug(xtrain)
+                # logging.debug(ytrain)
                 self.models[coldname][modelconf].fit(xtrain_sub, ytrain_sub)
 
     def __remove_predicted_columns_from_x(self, x_all_cols, coldname):
@@ -116,12 +128,12 @@ class TrainPredict:
             colsname = self.colmapd2s[coldname]
             coldnames_to_remove = self.colmaps2d[colsname]
             coldids_to_remove = column_index(self.converteddf, coldnames_to_remove)
-            #print("Before deletion:")
-            #print(coldid_to_remove)
-            #print(x_all_cols)
+            #logging.debug("Before deletion:")
+            #logging.debug(coldid_to_remove)
+            #logging.debug(x_all_cols)
             x = np.delete(x_all_cols, coldids_to_remove, 1)
-            #print("After deletion:")
-            #print(xtrain)
+            #logging.debug("After deletion:")
+            #logging.debug(xtrain)
         else:
             raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)            
         return x    

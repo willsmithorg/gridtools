@@ -4,52 +4,56 @@ import random
 import numpy as np
 from TrainPredict import TrainPredict
 
+import logging
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
 
 class SpotErrors:
 
-    def __init__(self, trainPredict):
+    def __init__(self):
 
         # Constants
         self.std_for_single_prediction_labelencoded = 0.3
-        self.zscore_for_error = 10
+        self.zscore_for_error = 5
         
         self.predictedmeans = None
         self.predictedstds = None
         self.boolerrors = None
                
+
+    def Spot(self, trainPredict, predictedmeans, predictedstds, colsname, singlerowid = None):
+    
         self.tp = trainPredict
-    
-    def SpotErrors(self, singlerowid = None):
-    
-        # We either predict the whole of the converted dataframe, or just one row.
+        self.predictedmeans = predictedmeans
+        self.predictedstds  = predictedstds
+        
+        # We either predicted the whole of the converted dataframe, or just one row.
         self.singlerowid = singlerowid
         
+        coldnames = self.tp.colmaps2d[colsname]
+
+        
         # Predict, if we haven't already.
-        if self.predictedmeans is None:
-            ytest = self.Predict(sourcedf, singlerowid)
-    
+        if self.predictedmeans is None or self.predictedstds is None:
+            raise(RuntimeError, "Must pass in predicted means and stds to SpotErrors::Spot")
+
         # Initially, we found no errors.
         if self.singlerowid is None:
-            self.boolerrors = pd.DataFrame(False, index=np.arange(len(self.tp.converteddf.index)), columns=self.tp.converteddf.columns)
+            self.boolerrors = pd.DataFrame(False, index=np.arange(self.tp.numrow_predict), columns=coldnames)
         else:
-            self.boolerrors = pd.DataFrame(False, index=[0], columns=self.tp.converteddf.columns)
+            self.boolerrors = pd.DataFrame(False, index=[0], columns=coldnames)
 
-      
- 
-
-        for coldname in self.tp.converteddf.columns:
-
+        for coldname in coldnames:
             for row in range(self.tp.numrow_predict):
 
                 # Are we looking for errors in a array of rows the same size as the training data, or just one row?
                 if self.singlerowid is None:
                     cellmean = self.predictedmeans[coldname][row]
                     cellstd  = self.predictedstds[coldname][row]                    
-                    actualcellvalue = self.converteddf[coldname][row]
+                    actualcellvalue = self.tp.converteddf[coldname][row]
                 else:  
-                    cellmean = self.predictmeans[coldname][0]
-                    cellmean = self.predictedstds[coldname][0]
+                    cellmean = self.predictedmeans[coldname][0]
+                    cellstd  = self.predictedstds[coldname][0]
                     actualcellvalue = self.tp.converteddf[coldname][self.singlerowid]
                     
    
@@ -64,10 +68,18 @@ class SpotErrors:
                     # 100% confident prediction?
                     if cellstd == 0.0:
                         if cellmean != actualcellvalue:
-                            self.__set_boolerror_true(coldname, row)
+                            # How different are they?  If substantially different, error.
+                            divisor = cellmean if cellmean != 0.0 else actualcellvalue                            
+                            difference_as_proportion = np.abs(cellmean - actualcellvalue) / np.abs(divisor)                            
+                            # More than 5% different : different.
+                            logging.debug('row ' + str(row) + ' mean pred ' + str(cellmean) + ' std ' + str(cellstd) + ' actual ' + str(actualcellvalue) + ' ratio ' + str(difference_as_proportion))
+
+                            if difference_as_proportion > 0.05:
+                                self.__set_boolerror_true(coldname, row)
                     else:
                         # Not 100% confident prediction, use the zscore to decide if it's an error.
-                        zscore = np.abs(cellmean - actualcellvalue) / cellstd       
+                        zscore = np.abs(cellmean - actualcellvalue) / cellstd  
+                        logging.debug('row ' + str(row) + ' mean pred ' + str(cellmean) + ' std ' + str(cellstd) + ' actual ' + str(actualcellvalue) + ' zscore ' + str(zscore))
                         # If bad, flag it as bad
                         if zscore >= self.zscore_for_error:
                             self.__set_boolerror_true(coldname, row)
@@ -142,7 +154,7 @@ class SpotErrors:
                             predicted = '(no clear prediction)'
 
                 if predicted is not None:
-                    print('row ' + str(row) + ' column ' + colsname  + 
+                    logging.debug('row ' + str(row) + ' column ' + colsname  + 
                     ': actual=' + str(actualcellvalue) +
                     ' predicted=' + predicted + 
                     (' stdev='+ stdev if stdev is not None else ''))              

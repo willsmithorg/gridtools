@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 from MakeFrameNumeric import MakeFrameNumeric
 
+import logging
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 
 class TestMakeFrameNumeric(unittest.TestCase):
 
