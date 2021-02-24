@@ -35,7 +35,7 @@ class TrainPredict:
         # Constants
         self.models_for_confidence = 10
         self.train_data_subset = 0.75
-        self.xgboost_subsample = 1
+        self.xgboost_subsample = 0.8
         self.numthreads_xgboost = 4
         self.xgboost_tree_method='auto' # gpu_hist = use gpu.   auto = default.
 
@@ -56,14 +56,14 @@ class TrainPredict:
         if (isinstance(sourcedf, dict)):
             sourcedf = pd.DataFrame(sourcedf)
             
-        if sourcedf is self.sourcedf:
-            # We trained on this already.  Return early.
-            # Caveat - maybe soembody changed the meta parameters above.
-            return
-            
         if( not isinstance(sourcedf, pd.DataFrame)):
             raise(TypeError,'df must be a DataFrame not a ' + str(type(sourcedf)))
-        
+
+        if sourcedf is self.sourcedf:
+            # We trained on this already.  Return early.
+            # Caveat - maybe somebody changed the meta parameters above.  They might expect us to retrain.
+            return
+                    
         self.sourcedf    = sourcedf       
         
         mfn = MakeFrameNumeric()
@@ -146,7 +146,7 @@ class TrainPredict:
         # Train.  It will return quickly if we already trained on this data.
         self.Train(sourcedf)
  
-        if not colsname in self.sourcedf.columns:
+        if colsname not in self.sourcedf.columns:
             raise ValueError('Source column ' + colsname + ' not in source column list' + str(self.sourcedf.columns))
             
         # Are we looking for errors in a array of rows the same size as the training data, or just one row?

@@ -5,7 +5,9 @@ import scipy
 from TrainPredict import TrainPredict
 
 import logging
-logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+import sys
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 
 
 class CalcMeanStdPredictions:
@@ -33,8 +35,8 @@ class CalcMeanStdPredictions:
         for cold in range(len(coldnames)): 
             coldname = self.tp.colmaps2d[colsname][cold]
             # Accumulate means and standard deviations of the predictions per column.
-            #logging.debug(ytest.shape)
-            #logging.debug(ytest[cold,:,:].shape)
+            logging.debug(ytest.shape)
+            logging.debug(ytest[cold,:,:].shape)
             self.predictedmeans[:,cold], self.predictedstds[:,cold] = self._CalcMeanAndDeviation(ytest[cold,:,:], self.tp.coltyped[coldname])
 
 
@@ -45,29 +47,39 @@ class CalcMeanStdPredictions:
         return (self.predictedmeans, self.predictedstds)           
 
     def _CalcMeanAndDeviation(self, ypredictions_single_col, coltype):
-                
+
+        logging.debug('calculating mean and stdev for ' + str(ypredictions_single_col) + ' ' + str(coltype))
+        
         # If the column is a labelencoded, just calculate the standard deviation of boolean difference from the most common value
         if coltype == 'labelencoded':
             # Calculate the most common value
             if isinstance(ypredictions_single_col, list) or len(ypredictions_single_col.shape) == 1:
-                mean = scipy.stats.mode(ypredictions_single_col).mode
+                logging.debug('coltype = ' + coltype)
+                logging.debug('y predictions shape : ')
+                logging.debug(str(ypredictions_single_col.shape))
+                mn = scipy.stats.mode(ypredictions_single_col, axis=0).mode
+                logging.debug('mean shape : ')
+                logging.debug(str(mn.shape))
                 # And calculate the variation as mean deviation away from that, in boolean terms (different = 1, same = 0)
-                std = np.mean(ypredictions_single_col != mean)
+                std = np.mean(ypredictions_single_col != mn)
             else:
                 assert(False, "weird")
-                mean = scipy.stats.mode(ypredictions_single_col, axis=1).mode
-                std = np.mean(ypredictions_single_col != mean, axis=1)
-                mean = mean.reshape(-1)
+                mn = scipy.stats.mode(ypredictions_single_col, axis=0).mode
+                std = np.mean(ypredictions_single_col != mn, axis=0)
+                mn = mn.reshape(-1)
         else:
+            logging.debug('coltype = ' + coltype)
+
             # Otherwise, conventional mean and standard deviation.   This also works for onehot because we only
             # do 1 column at a time.
-            mean = np.mean(ypredictions_single_col, axis=0, keepdims=True) 
-            # mean = scipy.stats.mode(ypredictions_single_col).mode
+            mn = np.mean(ypredictions_single_col, axis=0, keepdims=True) 
+            # mn = scipy.stats.mode(ypredictions_single_col).mode
 
             logging.debug('y predictions:')
             logging.debug(ypredictions_single_col)
             std  = np.std(ypredictions_single_col, axis=0, keepdims=True)
             
-                
-        return (mean, std)
+        logging.debug('mean is shape ' + str(mn.shape))
+        logging.debug('std is shape ' + str(std.shape))
+        return (mn, std)
  

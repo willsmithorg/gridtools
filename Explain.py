@@ -37,7 +37,7 @@ class Explain:
                 bestcoldnames.append(coldnames_learnt[coldid])
         
         if len(bestcoldnames):
-            print('Most useful columns to predict ''' + coldname + ' were ''' + str(bestcoldnames))
+            logging.debug('Most useful columns to predict ''' + coldname + ' were ''' + str(bestcoldnames))
             
   
     # Return the list of columns we are left with to predict from, if we are predicting column 'coldname'
