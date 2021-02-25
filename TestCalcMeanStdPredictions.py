@@ -42,13 +42,13 @@ class TestCalcMeanStdPredictions(unittest.TestCase):
         self.assertEqual(mn, 3.0)
         self.assertEqual(dev, 0)
         
-        # Normal mean and starndard deviation.
+        # Normal mean and standard deviation.
         y = [3.0] * 100 + [100]
         (mn,dev) = cms._CalcMeanAndDeviation(y, 'raw')        
         self.assertAlmostEqual(mn, 3.9603960396039604)
         self.assertAlmostEqual(dev, 9.603960396039602)
         
-        # If it's a label encoded field, the mean is the mode, and the standard deviation is lower because its' based
+        # If it's a label encoded field, the mean is the mode, and the standard deviation is lower because it's based
         # on the average boolean difference.
         (mn,dev) = cms._CalcMeanAndDeviation(y, 'labelencoded')
         self.assertEqual(mn, 3)

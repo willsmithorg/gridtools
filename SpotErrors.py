@@ -15,6 +15,7 @@ class SpotErrors:
         # Constants
         self.std_for_single_prediction_labelencoded = 0.3
         self.zscore_for_error = 5
+        self.proportional_difference_for_error = 0.05  # if there's no 0 deviation in our forecasts, we can't calculate a z score.  If the difference is this proportion (i.e 5%) it's an error.
 
         # These are in terms of destination columns (e.g. onehot)
         self.predictedmeans = None
@@ -74,18 +75,20 @@ class SpotErrors:
                         if cellmean != actualcellvalue:
                             # How different are they?  If substantially different, error.
                             divisor = cellmean if cellmean != 0.0 else actualcellvalue                            
-                            difference_as_proportion = np.abs(cellmean - actualcellvalue) / np.abs(divisor)                            
+                            proportional_difference_for_error = np.abs(cellmean - actualcellvalue) / np.abs(divisor)                            
                             # More than 5% different : different.
-                            logging.debug('row ' + str(row) + ' mean pred ' + str(cellmean) + ' std ' + str(cellstd) + ' actual ' + str(actualcellvalue) + ' ratio ' + str(difference_as_proportion))
+                            logging.debug('row ' + str(row) + ' mean pred ' + str(cellmean) + ' std ' + str(cellstd) + ' actual ' + str(actualcellvalue) + ' ratio ' + str(proportional_difference_for_error))
 
-                            if difference_as_proportion > 0.05:
+                            if proportional_difference_for_error > self.proportional_difference_for_error:
                                 self.__set_boolerror_true(coldname, row)
                     else:
                         # Not 100% confident prediction, use the zscore to decide if it's an error.
                         zscore = np.abs(cellmean - actualcellvalue) / cellstd  
-                        logging.debug('row ' + str(row) + ' mean pred ' + str(cellmean) + ' std ' + str(cellstd) + ' actual ' + str(actualcellvalue) + ' zscore ' + str(zscore))
+                        divisor = cellmean if cellmean != 0.0 else actualcellvalue                            
+                        proportional_difference_for_error = np.abs(cellmean - actualcellvalue) / np.abs(divisor)                          
+                        logging.debug('row ' + str(row) + ' mean pred ' + str(cellmean) + ' std ' + str(cellstd) + ' actual ' + str(actualcellvalue) + ' zscore ' + str(zscore) + ' ratio ' + str(proportional_difference_for_error))
                         # If bad, flag it as bad
-                        if zscore >= self.zscore_for_error:
+                        if zscore >= self.zscore_for_error and proportional_difference_for_error > self.proportional_difference_for_error:
                             self.__set_boolerror_true(coldname, row)
                     
         return self.boolerrord
@@ -107,15 +110,20 @@ class SpotErrors:
             self.SpotErrors(sourcedf)
         
         # A dataframe of lists.  We only store predictions when boolErrors is true.  
-        self.predictions = pd.DataFrame(columns=[colsname])
-        self.boolerrors = pd.DataFrame(columns=[colsname])
+        self.predictions = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_predict), dtype='object')
+        self.boolerrors = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_predict), dtype='bool')
+        # Defaults
+        
+
         
        
         # TODO can we vectorize this so we do a whole column at a time, at least for labelencoded and raw columns?
         
         for row in range(self.tp.numrow_predict):
-            predictions = None
-
+            self.predictions[colsname][row] = []        
+            self.boolerrors[colsname][row] = False
+        
+        
             # Are we looking for errors in a array of rows the same size as the training data, or just one row?
             if self.singlerowid is None: 
                 actualcellvalue = self.tp.sourcedf[colsname][row]
@@ -166,80 +174,13 @@ class SpotErrors:
             if self.boolerrors[colsname][row] is not None:
                 logging.debug('row ' + str(row) + ' column ' + colsname  + 
                 ': actual=' + str(actualcellvalue) +
-                ' predicted=' + predictions) 
+                ' predicted=' + str(self.predictions[colsname][row]))
                 
         else:
             self.boolerrors[colsname][row]
                 
         return (self.boolerrors, self.predictions)
                 
-        
-    def PrintErrors(self, sourcedf):
-        # Spot errors, if we haven't already.
-        if self.boolerrord is None:
-            self.SpotErrors(sourcedf)
-        
-        self.predictedmeans = pd.DataFrame(data=self.predictedmeans, columns=coldnames)
-        
-        for colsname in self.tp.sourcedf.columns:
-       
-            for row in range(self.tp.numrow_predict):
-                predicted = None
-                stdev = None
- 
-                # Are we looking for errors in a array of rows the same size as the training data, or just one row?
-                if self.singlerowid is None: 
-                    actualcellvalue = self.tp.sourcedf[colsname][row]
-                else:
-                    actualcellvalue = self.tp.sourcedf[colsname][self.singlerowid]
-                
-                # If it's a literal error, print it.
-                if self.coltypes[colsname] == 'raw':
-                    coldname = colsname
-                    if self.boolerrord[coldname][row]: 
-                        predicted = str(self.predictedmeans[coldname][row])
-                        stdev     = str(self.predictedstds[coldname][row])
-                        
-                elif self.tp.coltypes[colsname] == 'labelencoded':
-                    coldname = colsname                
-                    if self.boolerrord[coldname][row]:                    
-                    
-                        # What is the predicted value?  If std < 0.3 we are close to a single prediction
-                        if self.predictedstds[coldname][row] < self.std_for_single_prediction_labelencoded:
-                            predicted = str(self.tp.featuremapd[coldname][round(self.predictedmeans[coldname][row])])
-                        else:
-                            predicted = '(various)'
-                        
-                elif self.tp.coltypes[colsname] == 'onehot':
-                    # We have to look through all the destination columns, find what this mapped to (could be multiple), and then see
-                    # whether we think that's an error.
-                   
-                    # Which cell did we originally think it is?  Unless we think that's an error, no need to go further.
-                    coldname = self.tp.colmaps2d[colsname][self.tp.featuremaps[colsname][actualcellvalue]]
-                    
-                    if self.boolerrord[coldname][row]:                    
-                        predicted=[]
-                        for coldname in self.tp.colmaps2d[colsname]:
-                        
-                            cellmean = self.predictedmeans[coldname][row]
-                            cellstd  = self.predictedstds[coldname][row]
-                            if round(cellmean) == 1.0:
-                                predicted.append(str(self.tp.featuremapd[coldname]))
-                        
-                        if len(predicted) > 0:
-                            if len(predicted) > 1:
-                                predicted = '(any one of ' + ','.join(map(str,predicted)) + ')'
-                            else:
-                                predicted = str(predicted[0])
-                        else:
-                            predicted = '(no clear prediction)'
-
-                if predicted is not None:
-                    logging.debug('row ' + str(row) + ' column ' + colsname  + 
-                    ': actual=' + str(actualcellvalue) +
-                    ' predicted=' + predicted + 
-                    (' stdev='+ stdev if stdev is not None else ''))              
-
 
                     
                                  

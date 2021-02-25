@@ -6,7 +6,7 @@ from TrainPredict import TrainPredict
 
 import logging
 import sys
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
 
 
@@ -55,8 +55,6 @@ class CalcMeanStdPredictions:
             # Calculate the most common value
             if isinstance(ypredictions_single_col, list) or len(ypredictions_single_col.shape) == 1:
                 logging.debug('coltype = ' + coltype)
-                logging.debug('y predictions shape : ')
-                logging.debug(str(ypredictions_single_col.shape))
                 mn = scipy.stats.mode(ypredictions_single_col, axis=0).mode
                 logging.debug('mean shape : ')
                 logging.debug(str(mn.shape))
@@ -75,6 +73,7 @@ class CalcMeanStdPredictions:
             mn = np.mean(ypredictions_single_col, axis=0, keepdims=True) 
             # mn = scipy.stats.mode(ypredictions_single_col).mode
 
+            # Correct because the error cell            
             logging.debug('y predictions:')
             logging.debug(ypredictions_single_col)
             std  = np.std(ypredictions_single_col, axis=0, keepdims=True)

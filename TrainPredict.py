@@ -9,6 +9,8 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 from xgboost import XGBClassifier, XGBRegressor, DMatrix
 from MakeFrameNumeric import MakeFrameNumeric
 
+from sklearn.preprocessing import LabelEncoder
+
 
 # Train and predict a grid of tabular data (either a dict or a dataframe)
 # 
@@ -34,7 +36,7 @@ class TrainPredict:
         
         # Constants
         self.models_for_confidence = 10
-        self.train_data_subset = 0.75
+        self.train_data_subset = 0.8
         self.xgboost_subsample = 0.8
         self.numthreads_xgboost = 4
         self.xgboost_tree_method='auto' # gpu_hist = use gpu.   auto = default.
@@ -89,14 +91,16 @@ class TrainPredict:
             coldname = self.converteddf.columns[cold]
             if self.coltyped[coldname] == 'raw':
                 #logging.debug('column ' + coldname + ': created regressor')
-                self.models[coldname] = [XGBRegressor(tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
+                self.models[coldname] = [XGBRegressor(                          tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
             elif self.coltyped[coldname] == 'onehot':
                 #logging.debug('column ' + coldname + ': created binary classifier')            
                 self.models[coldname] = [XGBClassifier(tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='binary:logistic') for j in range(self.models_for_confidence)]            
-            else:
+            elif self.coltyped[coldname] == 'labelencoded':
                 #logging.debug('column ' + coldname + ': created multiclass classifier')
                 self.models[coldname] = [XGBClassifier(tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:logistic') for j in range(self.models_for_confidence)]
- 
+            else:
+                raise(ValueError, 'Unrecognised coltyped : ' + self.coltyped[coldname])
+                
             logging.debug('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
 
             # The x is all the columns except the y column we are training on.
@@ -114,20 +118,22 @@ class TrainPredict:
                     xtrain_sub = xtrain
                     ytrain_sub = ytrain
 
-                # logging.debug(xtrain)
-                # logging.debug(ytrain)
+                   
+                logging.debug(xtrain_sub.dtype)
+                logging.debug(ytrain_sub.dtype)
                 self.models[coldname][modelconf].fit(xtrain_sub, ytrain_sub)
 
+                
     def __remove_predicted_columns_from_x(self, x_all_cols, coldname):
         # If we are training on a one-hot column, we have to delete all the other grouped one-hot, because these all came from
         # the same source column.
         if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':   
-            coldid_to_remove = column_index(self.converteddf, coldname)        
+            coldid_to_remove = _column_index(self.converteddf, coldname)        
             x = np.delete(x_all_cols, coldid_to_remove, 1)
         elif self.coltyped[coldname] == 'onehot':
             colsname = self.colmapd2s[coldname]
             coldnames_to_remove = self.colmaps2d[colsname]
-            coldids_to_remove = column_index(self.converteddf, coldnames_to_remove)
+            coldids_to_remove = _column_index(self.converteddf, coldnames_to_remove)
             #logging.debug("Before deletion:")
             #logging.debug(coldid_to_remove)
             #logging.debug(x_all_cols)
@@ -149,7 +155,7 @@ class TrainPredict:
         if colsname not in self.sourcedf.columns:
             raise ValueError('Source column ' + colsname + ' not in source column list' + str(self.sourcedf.columns))
             
-        # Are we looking for errors in a array of rows the same size as the training data, or just one row?
+        # Are we looking for errors in an array of rows the same size as the training data, or just one row?
         self.singlerowid = singlerowid
         if self.singlerowid is None:
             self.numrow_predict = self.numrow_train
@@ -171,7 +177,7 @@ class TrainPredict:
             if self.singlerowid is not None:
                 xtest = xtest[self.singlerowid:self.singlerowid+1,:]        # Weird indexing just cuts one row out and makes sure the dimensions of the numpy array becomes 1 * num columns
 
-            # Get multiple predictions back on subtly different training data to give us a variation of results and a confidence interval.
+            # For this single column, get multiple predictions back on subtly different training data to give us a variation of results and a confidence interval.
             # We don't accumulate predictions for the entire grid multiple times, because it might take a lot of memory to store.
             for modelconf in range(self.models_for_confidence):   
                 ytest[cold,modelconf,:] = self.models[coldname][modelconf].predict(xtest)                
@@ -181,7 +187,7 @@ class TrainPredict:
           
         
 # Helper function to do df.columns.get_loc(colnames) for a list of colnames in one go.
-def column_index(df, query_cols):
+def _column_index(df, query_cols):
     cols = df.columns.values
     sidx = np.argsort(cols)
     return sidx[np.searchsorted(cols,query_cols,sorter=sidx)]
