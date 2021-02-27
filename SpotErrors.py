@@ -104,11 +104,14 @@ class SpotErrors:
         self.predictions = None
         self.boolerrors = None
 
-    def GetErrorsAndPredictions(self, colsname):
+    def GetErrorsAndPredictions(self, colsname, singlerowid = None):
         # Spot errors, if we haven't already.
         if self.boolerrord is None:
-            self.SpotErrors(sourcedf)
+            self.SpotErrors(sourcedf, singlerowid)
         
+        if self.singlerowid != singlerowid:
+            raise(ValueError("singlerowid passed to GetErrorsAndPredictions should match that passed to SpotErrors"))
+            
         # A dataframe of lists.  We only store predictions when boolErrors is true.  
         self.predictions = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_predict), dtype='object')
         self.boolerrors = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_predict), dtype='bool')

@@ -1,10 +1,15 @@
 import pandas as pd
 import scipy as scipy
-import random
 import numpy as np
 
+from TrainPredict import TrainPredict
+from CalcMeanStdPredictions import CalcMeanStdPredictions
+from SpotErrors import SpotErrors
+
 import logging
-logging.basicConfig(level=logging.INFO datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
+
 
 
 
@@ -13,45 +18,75 @@ class Explain:
 
     def __init__(self):
     
-        self.confidence_to_keep_column = 0.25
+        self.confidence_to_keep_column = 0.15
 
 
 
-    def GetBestColumnsToPredict(self, coldname):
-        if self.boolerrors is None:
-            raise(RuntimeError, "Should not call GetBestColumns before running Prediction")
+
+
+    def Explain(self, sourcedf, colsname):
+    
+        # First pass through the data - look for errors in every row.
+        tp = TrainPredict()
+        ytest = tp.Predict(sourcedf, colsname)
+               
+        cms = CalcMeanStdPredictions()
+        means,stds = cms.Calc(tp, ytest, colsname)               
+    
+        se = SpotErrors()
+        boolerrord = se.Spot(tp, means, stds, colsname)   
+        boolerrors, predictions = se.GetErrorsAndPredictions(colsname)
         
-        coldnames_learnt = self.__remove_predicted_column_names(self.converteddf.columns.values, coldname)
+        print(boolerrors)
+        print('First pass : found ' , str(boolerrors.values.sum()),  ' errors in column ' , colsname)
+        
+        # Iterate through the errors and relearn a model predicting just this row.
+        for row in np.arange(len(boolerrors)):
+            
+            if boolerrors[colsname][row]:
+                print('2nd pass : row=' + str(row))               
+                tp = TrainPredict()
+                ytest = tp.Predict(sourcedf, colsname, singlerowid = row)
+                cms = CalcMeanStdPredictions()
+                means,stds = cms.Calc(tp, ytest, colsname) 
+                se = SpotErrors()
+                boolerrord = se.Spot(tp, means, stds, colsname, singlerowid = row)   
+                boolerrors, predictions = se.GetErrorsAndPredictions(colsname, singlerowid = row)               
+                
+                print(boolerrors)
+                print(predictions)
+                
+                # TODO we shouldn't do this, learned_cols is per coldname not colsname.
+                print(tp.learned_cols[colsname])
+                # TODO we shouldn't do this, parameter is coldname not colsname.
+
+                print(self.GetBestColumnsToPredict(tp, colsname))
+                
+
+    # Todo we shuold accumulate this per colsname.  If 4 coldnames were slightly useful that makes the colsname very useful.
+    def GetBestColumnsToPredict(self, tp, coldname):
+
+        coldnames_learnt = tp.learned_cols[coldname]
         
         # Take the average feature importance across all models for each column.
         # If it's high, report this as a useful column.
         bestcoldnames = []
         for coldid in range(len(coldnames_learnt)):
             total_confidence = 0.0 
-            for m in range(self.models_for_confidence):
-                total_confidence += self.models[coldname][m].feature_importances_[coldid]
-            
-            total_confidence /= self.models_for_confidence
+            for m in range(tp.models_for_confidence):
+                total_confidence += tp.models[coldname][m].feature_importances_[coldid]            
+            total_confidence /= tp.models_for_confidence
+
+            print('coldname', coldnames_learnt[coldid], ' fi: ', total_confidence)
             
             if total_confidence >= self.confidence_to_keep_column:
                 bestcoldnames.append(coldnames_learnt[coldid])
         
         if len(bestcoldnames):
             logging.debug('Most useful columns to predict ''' + coldname + ' were ''' + str(bestcoldnames))
-            
+        
+        return bestcoldnames
   
-    # Return the list of columns we are left with to predict from, if we are predicting column 'coldname'
-    def __remove_predicted_column_names(self, all_coldnames, coldname):
-        if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':           
-            remaining_coldnames = np.setdiff1d(all_coldnames, coldname)
-        elif self.coltyped[coldname] == 'onehot':
-            colsname = self.colmapd2s[coldname]
-            coldnames_to_remove = self.colmaps2d[colsname]
-            remaining_coldnames = np.setdiff1d(all_coldnames, coldnames_to_remove)
 
-        else:
-            raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)                            
-            
-        return remaining_coldnames
         
         

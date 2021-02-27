@@ -44,6 +44,8 @@ class TrainPredict:
         # Store all the computed models
         self.models = None
 
+        # Which columns we trained on.  This is a dictionary per destination predicted column.
+        self.learned_cols = dict()
         
         
         # Make the predictions deterministic, so unit tests either succeed or fail and don't randomly change each time we run them.
@@ -77,7 +79,7 @@ class TrainPredict:
         self.featuremaps = mfn.featuremaps  
         self.colmaps2d = mfn.colmaps2d
         self.colmapd2s = mfn.colmapd2s
-        
+
         self.numpydf = self.converteddf.to_numpy()
         self.numrow_train = self.numpydf.shape[0]
         self.numcold = self.numpydf.shape[1]
@@ -144,7 +146,19 @@ class TrainPredict:
             raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)            
         return x    
         
-    
+        
+    # Return the list of columns we are left with to predict from, if we are predicting column 'coldname'
+    def __remove_predicted_column_names(self, all_coldnames, coldname):
+        if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':           
+            remaining_coldnames = np.setdiff1d(all_coldnames, coldname)
+        elif self.coltyped[coldname] == 'onehot':
+            colsname = self.colmapd2s[coldname]
+            coldnames_to_remove = self.colmaps2d[colsname]
+            remaining_coldnames = np.setdiff1d(all_coldnames, coldnames_to_remove)
+
+        else:
+            raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)                                        
+        return remaining_coldnames    
 
     # Predict just 1 column in the table, and optionally just a single row.
     def Predict(self, sourcedf, colsname, singlerowid = None):
@@ -173,9 +187,14 @@ class TrainPredict:
             coldname = self.colmaps2d[colsname][cold]
             # The x is all the columns except the y column we are predicting.
             x_all_cols = self.numpydf            
-            xtest = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                            
+            xtest = self.__remove_predicted_columns_from_x(x_all_cols, coldname) 
+            # Save the list of columns we actually learned on.  This is useful in Explain, to understand the list of feature importances.
+            self.learned_cols[coldname] = self.__remove_predicted_column_names(self.converteddf.columns, coldname)
+            
+            # If we are predicting just a single row, cut it out here.
             if self.singlerowid is not None:
-                xtest = xtest[self.singlerowid:self.singlerowid+1,:]        # Weird indexing just cuts one row out and makes sure the dimensions of the numpy array becomes 1 * num columns
+                # Weird indexing just cuts one row out and makes sure the dimensions of the numpy array becomes 1 * num columns.  TODO is there a nicer syntax?
+                xtest = xtest[self.singlerowid:self.singlerowid+1,:]        
 
             # For this single column, get multiple predictions back on subtly different training data to give us a variation of results and a confidence interval.
             # We don't accumulate predictions for the entire grid multiple times, because it might take a lot of memory to store.
