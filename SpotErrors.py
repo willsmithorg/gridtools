@@ -14,7 +14,7 @@ class SpotErrors:
 
         # Constants
         self.std_for_single_prediction_labelencoded = 0.3
-        self.zscore_for_error = 5
+        self.zscore_for_error = 8
         self.proportional_difference_for_error = 0.05  # if there's no 0 deviation in our forecasts, we can't calculate a z score.  If the difference is this proportion (i.e 5%) it's an error.
 
         # These are in terms of destination columns (e.g. onehot)

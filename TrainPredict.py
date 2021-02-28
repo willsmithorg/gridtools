@@ -38,7 +38,7 @@ class TrainPredict:
         self.models_for_confidence = 10
         self.train_data_subset = 0.8
         self.xgboost_subsample = 0.8
-        self.numthreads_xgboost = 4
+        self.numthreads_xgboost = 8
         self.xgboost_tree_method='auto' # gpu_hist = use gpu.   auto = default.
 
         # Store all the computed models
