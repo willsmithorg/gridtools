@@ -67,6 +67,7 @@ class Explain:
                 logging.debug(boolerrors_pass2)
                 logging.debug(predictions_pass2)
                 
+                
                 # Find out how likely is actual.  
                 if tp2.coltypes[colsname] == 'labelencoded' or tp2.coltypes[colsname] == 'actual':
                     bestCols = self.GetBestColumnsToPredict(tp2, colsname)  
@@ -74,7 +75,7 @@ class Explain:
                     # Get percentage of rows that had actual and predicted.
                     actual=sourcedf[colsname][row]
                     if len(predictions_pass2[colsname][0]):                    
-                        prediction1=predictions_pass2[colsname][0][0]
+                        prediction1=predictions_pass2[colsname][0][0]       # 0 because we predict only 1 row, 0 because we only consider the first prediction.
                     else:
                         prediction1=None
                         
@@ -93,7 +94,10 @@ class Explain:
                     
 
 
-    # Todo we shuold accumulate this per colsname.  If 4 coldnames were slightly useful that makes the colsname very useful.
+    # Get which colsnames where most useful in predicting this particular coldname.  We find the feature importance of the
+    # colsname (and any coldnames within it are summed).  If the colsname exceeds a threshold we keep it, and return a 'best column list'.
+    # This works for any column type.
+    #
     def GetBestColumnsToPredict(self, tp, coldname):
 
         print('GetBestColumnsToPredict for ' + coldname)
