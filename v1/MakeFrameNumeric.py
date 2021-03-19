@@ -2,6 +2,9 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 
+import logging
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 
 class MakeFrameNumeric:
 
@@ -41,12 +44,12 @@ class MakeFrameNumeric:
         self.coltyped = dict()       
         self.coltypes = dict()
         
-        #print('Converting...')
+        #logging.debug('Converting...')
         for col in self.inputdf.columns:
-            #print('Column : ' + col)
-            #print('Type: ' + str(type(self.inputdf[col][0])))            
+            #logging.debug('Column : ' + col)
+            #logging.debug('Type: ' + str(type(self.inputdf[col][0])))            
             cardinality = len(self.inputdf[col].unique())
-            #print('Cardinality: ' + str(cardinality))
+            #logging.debug('Cardinality: ' + str(cardinality))
             
             # If string, one-hot (if not too many unique values) or feature encode.
             # TODO what about integers?  Some people use those for categories.  Maybe we can check the cardinality.
@@ -60,7 +63,7 @@ class MakeFrameNumeric:
                     if cardinality > self.maximum_cardinality_for_one_hot_encode:
                         self.converteddf[col] = feature
                         self.colmapd2s[col] = col
-                        self.colmaps2d[col] = col
+                        self.colmaps2d[col] = [col]
                         self.featuremapd[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
                         self.featuremaps[col] = dict(zip(label_encoder.classes_, range(len(label_encoder.classes_)))) 
                         self.coltyped[col] = 'labelencoded'
@@ -90,7 +93,7 @@ class MakeFrameNumeric:
                 # Already numeric, copy directly.
                 self.converteddf[col] = self.inputdf[col]
                 self.colmapd2s[col] = col                
-                self.colmaps2d[col] = col
+                self.colmaps2d[col] = [col]
                 self.featuremapd[col] = None                
                 self.featuremaps[col] = None
                 self.coltyped[col] = 'raw'
