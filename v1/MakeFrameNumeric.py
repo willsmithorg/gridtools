@@ -13,7 +13,9 @@ class MakeFrameNumeric:
         self.maximum_cardinality_for_one_hot_encode = 10
     
         # The converted dataframe
-        self.xdf_dest = None
+
+        self.converteddf = None
+
         # Mapping from destination column to source column
         self.colmapd2s = None 
         # Mapping from source column to destination column
@@ -36,7 +38,8 @@ class MakeFrameNumeric:
             raise(TypeError,'inputdf must be a DataFrame not a ' + str(type(inputdf)))
 
         self.inputdf = inputdf    
-        self.xdf_dest = pd.DataFrame()
+        self.converteddf = pd.DataFrame()
+
         self.colmapd2s = dict()  
         self.colmaps2d = dict()           
         self.featuremapd = dict()
@@ -61,7 +64,8 @@ class MakeFrameNumeric:
                     feature = feature.astype(int)
                                     
                     if cardinality > self.maximum_cardinality_for_one_hot_encode:
-                        self.xdf_dest[col] = feature
+                        self.converteddf[col] = feature
+
                         self.colmapd2s[col] = col
                         self.colmaps2d[col] = [col]
                         self.featuremapd[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
@@ -83,7 +87,9 @@ class MakeFrameNumeric:
                         
                         for f in range(feature.shape[1]):
                             convertedcol = col + '_' + str(f)
-                            self.xdf_dest[convertedcol] = feature[:,f]
+
+                            self.converteddf[convertedcol] = feature[:,f]
+
                             self.featuremapd[convertedcol] = label_encoder.classes_[f]
                             self.colmapd2s[convertedcol] = col
                             self.colmaps2d[col].append(convertedcol)                         
@@ -91,7 +97,7 @@ class MakeFrameNumeric:
 
             else:
                 # Already numeric, copy directly.
-                self.xdf_dest[col] = self.inputdf[col]
+                self.converteddf[col] = self.inputdf[col]
                 self.colmapd2s[col] = col                
                 self.colmaps2d[col] = [col]
                 self.featuremapd[col] = None                
@@ -99,5 +105,6 @@ class MakeFrameNumeric:
                 self.coltyped[col] = 'raw'
                 self.coltypes[col] = 'raw'                
             
-        return self.xdf_dest
+        return self.converteddf
+
         

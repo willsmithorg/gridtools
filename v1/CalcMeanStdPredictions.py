@@ -32,6 +32,7 @@ class CalcMeanStdPredictions:
         self.predictedmeans = np.zeros((numrow_y, numcol_xdf_dest))
         self.predictedstds  = np.zeros((numrow_y, numcol_xdf_dest))
 
+
         for cold in range(len(coldnames)): 
             coldname = self.tp.colmaps2d[colsname][cold]
             # Accumulate means and standard deviations of the predictions per column.
