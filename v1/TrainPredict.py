@@ -22,17 +22,17 @@ class TrainPredict:
 
     def __init__(self):
          
-        # Source dataframe, what the user passed in
-        self.sourcedf = None
+        # Source x dataframe, what the user passed in
+        self.xdf_src = None
         # Converted dataframe, label encoded and 1-hot encoded
-        self.converteddf = None
+        self.xdf_dest = None
         # Numpy equivalent of converted dataframe, ready for XGBoost
-        self.numpydf = None
+        self.xdf_dest_np = None
         
         # Precalculate for ease of reference
-        self.numrow_train = 0
-        self.numrow_predict = 0
-        self.numcold = 0  # Number of destination i.e. converted columns.
+        self.numrow_xdf = 0
+        self.numrow_y = 0
+        self.numcol_xdf_dest = 0  # Number of destination i.e. converted columns.
         
         # Constants
         self.models_for_confidence = 10
@@ -55,42 +55,49 @@ class TrainPredict:
         # We can explicitly only predict one row
         self.singlerowid = None
  
-    def Train(self, sourcedf):
-    
-        if (isinstance(sourcedf, dict)):
-            sourcedf = pd.DataFrame(sourcedf)
-            
-        if( not isinstance(sourcedf, pd.DataFrame)):
-            raise(TypeError,'df must be a DataFrame not a ' + str(type(sourcedf)))
+    def Prep(self, xdf):
+        # Do as much as we can to prep this x dataframe for training without actually doing the expensive training.
+        # We should only need to prep this particular x dataframe once.
+ 
 
-        if sourcedf is self.sourcedf:
+        if (isinstance(xdf, dict)):
+            xdf = pd.DataFrame(xdf)
+
+        if( not isinstance(xdf, pd.DataFrame)):
+            raise(TypeError,'df must be a DataFrame not a ' + str(type(xdf)))
+
+        if xdf is self.xdf_src:
             # We trained on this already.  Return early.
             # Caveat - maybe somebody changed the meta parameters above.  They might expect us to retrain.
             return
-                    
-        self.sourcedf    = sourcedf       
-        
+
+        self.xdf_src    = xdf
+
         mfn = MakeFrameNumeric()
-        self.converteddf = mfn.Convert(sourcedf)
+        self.xdf_dest = mfn.Convert(self.xdf_src)
+        
         # Read some other mappings out of the conversion
         self.coltyped = mfn.coltyped
         self.coltypes = mfn.coltypes
-        self.featuremapd = mfn.featuremapd   
-        self.featuremaps = mfn.featuremaps  
+        self.featuremapd = mfn.featuremapd
+        self.featuremaps = mfn.featuremaps
         self.colmaps2d = mfn.colmaps2d
         self.colmapd2s = mfn.colmapd2s
 
-        self.numpydf = self.converteddf.to_numpy()
-        self.numrow_train = self.numpydf.shape[0]
-        self.numcold = self.numpydf.shape[1]
-        # Precreate a large number of xgboost models : 
-        #  -  firstly we create multiple models so we can push slightly different data at them to get a sense of the 
+        self.xdf_dest_np = self.xdf_dest.to_numpy()
+        self.numrow_xdf = self.xdf_dest_np.shape[0]
+        self.numcol_xdf_dest = self.xdf_dest_np.shape[1]
+
+
+    
+    def Train(self, xdf_src):
+        # Precreate a large number of xgboost models :
+        #  -  firstly we create multiple models so we can push slightly different data at them to get a sense of the
         #    confidence of prediction by looking at the different results.
         #  - secondly, we need a separate model to predict each column.
         
-        self.models = dict()
-        for cold in range(self.numcold):  
-            coldname = self.converteddf.columns[cold]
+        for cold in range(self.numcol_xdf_dest):  
+            coldname = self.xdf_dest.columns[cold]
             if self.coltyped[coldname] == 'raw':
                 #logging.debug('column ' + coldname + ': created regressor')
                 self.models[coldname] = [XGBRegressor(                          tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
@@ -106,9 +113,9 @@ class TrainPredict:
             logging.debug('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
 
             # The x is all the columns except the y column we are training on.
-            x_all_cols = self.numpydf
+            x_all_cols = self.xdf_dest_np
             xtrain = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                    
-            ytrain = self.numpydf[:,cold]
+            ytrain = self.xdf_dest_np[:,cold]
             
              # Train multiple times on different subsets of the data to help us get a confidence interval. 
             for modelconf in range(self.models_for_confidence):
@@ -130,12 +137,12 @@ class TrainPredict:
         # If we are training on a one-hot column, we have to delete all the other grouped one-hot, because these all came from
         # the same source column.
         if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':   
-            coldid_to_remove = _column_index(self.converteddf, coldname)        
+            coldid_to_remove = _column_index(self.xdf_dest, coldname)        
             x = np.delete(x_all_cols, coldid_to_remove, 1)
         elif self.coltyped[coldname] == 'onehot':
             colsname = self.colmapd2s[coldname]
             coldnames_to_remove = self.colmaps2d[colsname]
-            coldids_to_remove = _column_index(self.converteddf, coldnames_to_remove)
+            coldids_to_remove = _column_index(self.xdf_dest, coldnames_to_remove)
             #logging.debug("Before deletion:")
             #logging.debug(coldid_to_remove)
             #logging.debug(x_all_cols)
@@ -160,36 +167,33 @@ class TrainPredict:
             raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)                                        
         return remaining_coldnames    
 
-    # Predict just 1 column in the table, and optionally just a single row.
-    def Predict(self, sourcedf, colsname, singlerowid = None):
+    # Predict a target ysourcedf.  All the columns in the ysourcedf should be in the xdf_src.
+    def Predict(self, ysourcedf, colsname):
 
-        # Train.  It will return quickly if we already trained on this data.
-        self.Train(sourcedf)
- 
-        if colsname not in self.sourcedf.columns:
+        if colsname not in self.xdf_src.columns:
             raise ValueError('Source column ' + colsname + ' not in source column list' + str(self.sourcedf.columns))
             
         # Are we looking for errors in an array of rows the same size as the training data, or just one row?
         self.singlerowid = singlerowid
         if self.singlerowid is None:
-            self.numrow_predict = self.numrow_train
+            self.numrow_y = self.numrow_xdf
         else:
-            if singlerowid > self.numrow_train:
-                raise ValueError('Cannot train on row ' + str(singlerowid) + ' because the training data only had ' + str(self.numrow_train) + ' rows')
+            if singlerowid > self.numrow_xdf:
+                raise ValueError('Cannot train on row ' + str(singlerowid) + ' because the training data only had ' + str(self.numrow_xdf) + ' rows')
 
-            self.numrow_predict = 1            
+            self.numrow_y = 1            
          
         # We create one model prediction for every destination column mapped from the source column.
 
-        ytest = np.zeros((len(self.colmaps2d[colsname]), self.models_for_confidence, self.numrow_predict))
+        ytest = np.zeros((len(self.colmaps2d[colsname]), self.models_for_confidence, self.numrow_y))
         
         for cold in range(len(self.colmaps2d[colsname])): 
             coldname = self.colmaps2d[colsname][cold]
             # The x is all the columns except the y column we are predicting.
-            x_all_cols = self.numpydf            
+            x_all_cols = self.xdf_dest_np            
             xtest = self.__remove_predicted_columns_from_x(x_all_cols, coldname) 
             # Save the list of columns we actually learned on.  This is useful in Explain, to understand the list of feature importances.
-            self.learned_cols[coldname] = self.__remove_predicted_column_names(self.converteddf.columns, coldname)
+            self.learned_cols[coldname] = self.__remove_predicted_column_names(self.xdf_dest.columns, coldname)
             
             # If we are predicting just a single row, cut it out here.
             if self.singlerowid is not None:

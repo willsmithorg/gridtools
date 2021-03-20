@@ -44,22 +44,22 @@ class SpotErrors:
 
         # Initially, we found no errors.
         if self.singlerowid is None:
-            self.boolerrord = pd.DataFrame(False, index=np.arange(self.tp.numrow_predict), columns=coldnames)
+            self.boolerrord = pd.DataFrame(False, index=np.arange(self.tp.numrow_y), columns=coldnames)
         else:
             self.boolerrord = pd.DataFrame(False, index=[0], columns=coldnames)
 
         for coldname in coldnames:
-            for row in range(self.tp.numrow_predict):
+            for row in range(self.tp.numrow_y):
 
                 # Are we looking for errors in a array of rows the same size as the training data, or just one row?
                 if self.singlerowid is None:
                     cellmean = self.predictedmeans[coldname][row]
                     cellstd  = self.predictedstds[coldname][row]                    
-                    actualcellvalue = self.tp.converteddf[coldname][row]
+                    actualcellvalue = self.tp.xdf_dest[coldname][row]
                 else:  
                     cellmean = self.predictedmeans[coldname][0]
                     cellstd  = self.predictedstds[coldname][0]
-                    actualcellvalue = self.tp.converteddf[coldname][self.singlerowid]
+                    actualcellvalue = self.tp.xdf_dest[coldname][self.singlerowid]
                     
    
                 if self.tp.coltyped[coldname] == 'labelencoded':
@@ -113,8 +113,8 @@ class SpotErrors:
             raise(ValueError("singlerowid passed to GetErrorsAndPredictions should match that passed to SpotErrors"))
             
         # A dataframe of lists.  We only store predictions when boolErrors is true.  
-        self.predictions = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_predict), dtype='object')
-        self.boolerrors = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_predict), dtype='bool')
+        self.predictions = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_y), dtype='object')
+        self.boolerrors = pd.DataFrame(columns=[colsname], index=np.arange(self.tp.numrow_y), dtype='bool')
         # Defaults
         
 
@@ -122,7 +122,7 @@ class SpotErrors:
        
         # TODO can we vectorize this so we do a whole column at a time, at least for labelencoded and raw columns?
         
-        for row in range(self.tp.numrow_predict):
+        for row in range(self.tp.numrow_y):
             self.predictions[colsname][row] = []        
             self.boolerrors[colsname][row] = False
         

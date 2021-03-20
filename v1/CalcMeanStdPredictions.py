@@ -23,14 +23,14 @@ class CalcMeanStdPredictions:
 
         coldnames = self.tp.colmaps2d[colsname]
 
-        # ytest is (numcold, models_to_average, nrows_trained) in size.
+        # ytest is (numcol_xdf_dest, models_to_average, nrows_trained) in size.
         
-        numrow_predict = ytest.shape[2]
-        numcold = ytest.shape[0]
+        numrow_y = ytest.shape[2]
+        numcol_xdf_dest = ytest.shape[0]
         
         # We got the predictions in ytest, several per column.  Average them.
-        self.predictedmeans = np.zeros((numrow_predict, numcold))
-        self.predictedstds  = np.zeros((numrow_predict, numcold))
+        self.predictedmeans = np.zeros((numrow_y, numcol_xdf_dest))
+        self.predictedstds  = np.zeros((numrow_y, numcol_xdf_dest))
 
         for cold in range(len(coldnames)): 
             coldname = self.tp.colmaps2d[colsname][cold]

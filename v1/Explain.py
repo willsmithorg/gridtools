@@ -69,7 +69,7 @@ class Explain:
                 
                 
                 # Find out how likely is actual.  
-                if tp2.coltypes[colsname] == 'labelencoded' or tp2.coltypes[colsname] == 'actual':
+                if tp2.coltypes[colsname] == 'labelencoded' or tp2.coltypes[colsname] == 'raw':
                     bestCols = self.GetBestColumnsToPredict(tp2, colsname)  
 
                     # Get percentage of rows that had actual and predicted.
