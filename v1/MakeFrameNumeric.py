@@ -13,7 +13,9 @@ class MakeFrameNumeric:
         self.maximum_cardinality_for_one_hot_encode = 10
     
         # The converted dataframe
+
         self.converteddf = None
+
         # Mapping from destination column to source column
         self.colmapd2s = None 
         # Mapping from source column to destination column
@@ -37,6 +39,7 @@ class MakeFrameNumeric:
 
         self.inputdf = inputdf    
         self.converteddf = pd.DataFrame()
+
         self.colmapd2s = dict()  
         self.colmaps2d = dict()           
         self.featuremapd = dict()
@@ -62,6 +65,7 @@ class MakeFrameNumeric:
                                     
                     if cardinality > self.maximum_cardinality_for_one_hot_encode:
                         self.converteddf[col] = feature
+
                         self.colmapd2s[col] = col
                         self.colmaps2d[col] = [col]
                         self.featuremapd[col] = dict(zip(range(len(label_encoder.classes_)), label_encoder.classes_))
@@ -83,7 +87,9 @@ class MakeFrameNumeric:
                         
                         for f in range(feature.shape[1]):
                             convertedcol = col + '_' + str(f)
+
                             self.converteddf[convertedcol] = feature[:,f]
+
                             self.featuremapd[convertedcol] = label_encoder.classes_[f]
                             self.colmapd2s[convertedcol] = col
                             self.colmaps2d[col].append(convertedcol)                         
@@ -100,4 +106,5 @@ class MakeFrameNumeric:
                 self.coltypes[col] = 'raw'                
             
         return self.converteddf
+
         

@@ -22,6 +22,7 @@ class TrainPredict:
 
     def __init__(self):
          
+
         # Source dataframe, what the user passed in
         self.sourcedf = None
         # Converted dataframe, label encoded and 1-hot encoded
@@ -33,6 +34,7 @@ class TrainPredict:
         self.numrow_train = 0
         self.numrow_predict = 0
         self.numcold = 0  # Number of destination i.e. converted columns.
+
         
         # Constants
         self.models_for_confidence = 10
@@ -91,6 +93,7 @@ class TrainPredict:
         self.models = dict()
         for cold in range(self.numcold):  
             coldname = self.converteddf.columns[cold]
+
             if self.coltyped[coldname] == 'raw':
                 #logging.debug('column ' + coldname + ': created regressor')
                 self.models[coldname] = [XGBRegressor(                          tree_method=self.xgboost_tree_method, subsample=self.xgboost_subsample, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') for j in range(self.models_for_confidence)]
@@ -106,9 +109,11 @@ class TrainPredict:
             logging.debug('building model for column ' + coldname + ' type ' + self.coltyped[coldname])
 
             # The x is all the columns except the y column we are training on.
+
             x_all_cols = self.numpydf
             xtrain = self.__remove_predicted_columns_from_x(x_all_cols, coldname)                    
             ytrain = self.numpydf[:,cold]
+
             
              # Train multiple times on different subsets of the data to help us get a confidence interval. 
             for modelconf in range(self.models_for_confidence):
@@ -130,12 +135,16 @@ class TrainPredict:
         # If we are training on a one-hot column, we have to delete all the other grouped one-hot, because these all came from
         # the same source column.
         if self.coltyped[coldname] == 'raw' or self.coltyped[coldname] == 'labelencoded':   
+
             coldid_to_remove = _column_index(self.converteddf, coldname)        
+
             x = np.delete(x_all_cols, coldid_to_remove, 1)
         elif self.coltyped[coldname] == 'onehot':
             colsname = self.colmapd2s[coldname]
             coldnames_to_remove = self.colmaps2d[colsname]
+
             coldids_to_remove = _column_index(self.converteddf, coldnames_to_remove)
+
             #logging.debug("Before deletion:")
             #logging.debug(coldid_to_remove)
             #logging.debug(x_all_cols)
@@ -160,6 +169,7 @@ class TrainPredict:
             raise(TypeError,'coltyped must be one of (raw, labelencoded, onehot) not ' + self.coltyped)                                        
         return remaining_coldnames    
 
+
     # Predict just 1 column in the table, and optionally just a single row.
     def Predict(self, sourcedf, colsname, singlerowid = None):
 
@@ -167,11 +177,13 @@ class TrainPredict:
         self.Train(sourcedf)
  
         if colsname not in self.sourcedf.columns:
+
             raise ValueError('Source column ' + colsname + ' not in source column list' + str(self.sourcedf.columns))
             
         # Are we looking for errors in an array of rows the same size as the training data, or just one row?
         self.singlerowid = singlerowid
         if self.singlerowid is None:
+
             self.numrow_predict = self.numrow_train
         else:
             if singlerowid > self.numrow_train:
@@ -182,14 +194,17 @@ class TrainPredict:
         # We create one model prediction for every destination column mapped from the source column.
 
         ytest = np.zeros((len(self.colmaps2d[colsname]), self.models_for_confidence, self.numrow_predict))
+
         
         for cold in range(len(self.colmaps2d[colsname])): 
             coldname = self.colmaps2d[colsname][cold]
             # The x is all the columns except the y column we are predicting.
+
             x_all_cols = self.numpydf            
             xtest = self.__remove_predicted_columns_from_x(x_all_cols, coldname) 
             # Save the list of columns we actually learned on.  This is useful in Explain, to understand the list of feature importances.
             self.learned_cols[coldname] = self.__remove_predicted_column_names(self.converteddf.columns, coldname)
+
             
             # If we are predicting just a single row, cut it out here.
             if self.singlerowid is not None:
