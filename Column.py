@@ -2,7 +2,6 @@ import pandas as pd
 import scipy as scipy
 import numpy as np
 import logging
-from pprint import pprint
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
 
@@ -22,6 +21,10 @@ class Column:
     @property
     def name(self):
         return self.series.name
+
+    @name.setter
+    def name(self, newname):
+        self.series.name = newname
         
     @property
     def dtype(self):
@@ -55,7 +58,9 @@ class Column:
                         parent='-' if self.parent == None else self.parent.name
                         )
 
-        return colstr
+        datastr = str(self.series.head())
+        
+        return colstr + datastr
         
         
             
