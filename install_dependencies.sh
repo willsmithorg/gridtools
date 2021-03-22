@@ -7,6 +7,7 @@ pip install numpy
 pip install pandas
 pip install sklearn
 pip install xgboost
+pip install cached_property
 
 
 
