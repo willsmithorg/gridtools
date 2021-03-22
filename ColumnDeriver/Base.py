@@ -18,13 +18,44 @@ class ColumnDeriverBase:
     # TODO implement.
     allowrecursive = False
 
-    
+    def __init__(self):
+        pass
+        
     def IsApplicable(self, column):
         return True
         
-    def __str__(self):   
-        return ','.join([cls.__name__ for cls in ColumnDeriverBase.__subclasses__()])
+    def __str__(self):
+        n =             'Name : ' + name + '\n'        
+        subclasses =    'Subclasses : ' + ','.join([cls.__name__ for cls in ColumnDeriverBase.__subclasses__()]) + '\n'
+        return n + subclasses
+        
+    def IsNumeric(self, column):
+        return column.dtype == 'int64' or column.dtype == 'float64'
         
     def GetDerivers(self):
         return ColumnDeriverBase.__subclasses__()
         
+    def StrContains(self, column, substring):
+        return column.series.str.contains(substring, regex=False)
+        
+    def StrMatches(self, column, regex):
+        return column.series.str.contains(regex, regex=True)
+        
+        
+    def Most(self, column, boolseries, threshold=0.8):
+        if boolseries.sum() >= threshold * column.size:
+            return True
+        else:
+            return False
+            
+    def Some(self, column, boolseries, threshold=0.5):
+        if boolseries.sum() >= threshold * column.size:
+            return True
+        else:
+            return False            
+        
+    def AFew(self, column, boolseries, threshold=0.2):
+        if boolseries.sum() >= threshold * column.size:
+            return True
+        else:
+            return False          

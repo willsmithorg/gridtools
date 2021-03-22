@@ -10,17 +10,16 @@ class ColumnDeriverUpper(ColumnDeriverBase):
 
     name = "uppercase"
     description = "Uppercase of "
+    
+    # Doesn't make sense to apply this to itself.
     allowrecursive = False
 
-    def __init__(self):
-        print('upper::init')        
-        
     def IsApplicable(self, column):
-        return column.dtype == 'object'
+        return column.dtype == 'object' and self.Some(column, self.StrMatches(column, '[a-z]'))
         
     def Apply(self, column):
         newcol = Column(column.series.str.upper())
-        return newcol
+        return { self.name: newcol }
 
         
  

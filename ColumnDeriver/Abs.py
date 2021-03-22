@@ -11,17 +11,16 @@ class ColumnDeriverAbs(ColumnDeriverBase):
     name = "absolute"
     description = "The absolute value of "
     maxdepth = 1
+    
+    # Doesn't make sense to apply this to itself.    
     allowrecursive = False    
-
-    def __init__(self):
-        print('abs::init')
-                
+        
     def IsApplicable(self, column):
-        return column.dtype == 'int64' and any(column.series > 0) and any(column.series < 0)
+        return self.IsNumeric(column) and any(column.series > 0) and any(column.series < 0)
         
     def Apply(self, column):
         newcol = Column(column.series.map(abs))
-        return newcol
+        return { self.name: newcol }
 
         
  

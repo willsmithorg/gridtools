@@ -12,15 +12,12 @@ class ColumnDeriverLen(ColumnDeriverBase):
     description = "Length of "
     maxdepth = 2
 
-    def __init__(self):
-        print('len::init')
-        
     def IsApplicable(self, col):
         return col.dtype == 'object'
         
     def Apply(self, col):
         newcol = Column(col.series.map(len))       
-        return newcol
+        return { self.name: newcol }
 
         
  
