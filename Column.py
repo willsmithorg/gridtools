@@ -1,6 +1,7 @@
 import pandas as pd
 import scipy as scipy
 import numpy as np
+from cached_property import cached_property
 import logging
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
@@ -13,6 +14,8 @@ class Column:
         self.parent = None        
         self.children = []
         self.depth = 0
+        # Which deriver was used to create this column.
+        self.deriver = None
     
     @property
     def size(self):
@@ -29,9 +32,12 @@ class Column:
     @property
     def dtype(self):
         return self.series.dtype
+        
+    # Number of unique elements.  We expect this might be expensive to compute so we cache it.
+    @cached_property
+    def nunique(self):
+        return self.series.nunique()
     
-    
-
     def MakeChild(self, s):
         self.children.append(s)
         s.parent = self
@@ -62,6 +68,7 @@ class Column:
         
         return colstr + datastr
         
-        
+    
+     
             
     
