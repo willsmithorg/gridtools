@@ -19,7 +19,7 @@ class ColumnDeriverAbs(ColumnDeriverBase):
         return self.IsNumeric(column) and any(column.series > 0) and any(column.series < 0)
         
     def Apply(self, column):
-        newcol = Column(column.series.map(abs))
+        newcol = column.series.map(abs)
         return { self.name: newcol }
 
         

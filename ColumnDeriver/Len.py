@@ -13,10 +13,12 @@ class ColumnDeriverLen(ColumnDeriverBase):
     maxdepth = 2
 
     def IsApplicable(self, col):
-        return col.dtype == 'object'
+        print('considering len() on', col.name, 'its type is ', col.dtype)
+        
+        return col.dtype == 'object' and ~ self.IsNumeric(col)
         
     def Apply(self, col):
-        newcol = Column(col.series.map(len))       
+        newcol = col.series.map(len)      
         return { self.name: newcol }
 
         

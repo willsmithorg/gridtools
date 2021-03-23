@@ -18,7 +18,7 @@ class ColumnDeriverUpper(ColumnDeriverBase):
         return column.dtype == 'object' and self.Some(column, self.StrMatches(column, '[a-z]'))
         
     def Apply(self, column):
-        newcol = Column(column.series.str.upper())
+        newcol = column.series.str.upper()
         return { self.name: newcol }
 
         
