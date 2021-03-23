@@ -51,15 +51,20 @@ class AddDerivedColumns:
                     # Apply the deriver.  It will return a hash of new columns (keyed by name), if it thinks any are needed.  
                     newcols = deriver.Apply(column)                    
                     for name,newcol in newcols.items():
+                        print('\t' * column.depth,': got', name)
                         # Handle the deriver forgetting to wrap a series up as a column.
-                        if isinstance(newcol, pd.Series):
+                        if ~isinstance(newcol, Column) and isinstance(newcol, pd.Series):
                             newcol=Column(newcol)
-                            
-                        newcol.name = column.name + self.delimiter + name
-                        # Save how we created it.
-                        newcol.deriver = deriver
-                        column.MakeChild(newcol)                    
-                        derivedcolumns.append(newcol)                    
+
+                        # No point adding this column if its cardinality is 1.
+                        unique_elements = newcol.nunique
+                        print('\t' * column.depth,':', name, 'has', unique_elements, 'unique elements')
+                        if unique_elements > 1:
+                            newcol.name = column.name + self.delimiter + name
+                            # Save how we created it.
+                            newcol.deriver = deriver
+                            column.MakeChild(newcol)                    
+                            derivedcolumns.append(newcol)                    
                     
                 else:
                     # print('\t' * column.depth, 'applicable but blocked by recursion')
@@ -69,16 +74,17 @@ class AddDerivedColumns:
                 pass
                 
         # Breadth first.  We added what we can.  Only now try to recurse and add further columns. 
-        recursivecolumns = []
+        newchildcols = []
         for newcolumn in derivedcolumns:              
             #print('\t' * column.depth, 'recursing into', newcolumn.name)
             #print('type:', type(newcolumn))
-            recursivecolumns.append(self.Process(newcolumn))
+            newchildcols.extend(self.Process(newcolumn))
             #print('\t' * column.depth, '...recursed.')                        
-        derivedcolumns.append(recursivecolumns)
+        derivedcolumns.extend(newchildcols)
         
         # Return all added columns from this node downwards, up to the parent.
         return derivedcolumns    
+
 
     # Get the derivers of all columns including the parent.  This helps to prevent
     # us adding recursive derivers that are the same as an ancestor (e.g. with UPPER this 

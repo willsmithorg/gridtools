@@ -34,7 +34,7 @@ class Column:
         return self.series.dtype
         
     # Number of unique elements.  We expect this might be expensive to compute so we cache it.
-    @cached_property
+    @property
     def nunique(self):
         return self.series.nunique()
     
