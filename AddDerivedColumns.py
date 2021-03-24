@@ -12,6 +12,7 @@ from ColumnDeriver.Upper import ColumnDeriverUpper
 from ColumnDeriver.MinMaxScaler import ColumnDeriverMinMaxScaler
 from ColumnDeriver.RobustScaler import ColumnDeriverRobustScaler
 from ColumnDeriver.Date import ColumnDeriverDate
+from ColumnDeriver.TokenizerCharDecimal import ColumnDeriverTokenizerCharDecimal
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 

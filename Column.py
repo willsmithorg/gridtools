@@ -64,7 +64,7 @@ class Column:
                         parent='-' if self.parent == None else self.parent.name
                         )
 
-        datastr = str(self.series.head())
+        datastr = str(self.series.head(10))
         
         return colstr + datastr
         

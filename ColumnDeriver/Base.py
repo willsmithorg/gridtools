@@ -40,7 +40,12 @@ class ColumnDeriverBase:
         
     def StrMatches(self, column, regex):
         return column.series.str.contains(regex, regex=True)
-        
+
+    def All(self, column, boolseries, threshold=1.0):
+        if boolseries.sum() >= threshold * column.size:
+            return True
+        else:
+            return False        
         
     def Most(self, column, boolseries, threshold=0.8):
         if boolseries.sum() >= threshold * column.size:
@@ -58,4 +63,10 @@ class ColumnDeriverBase:
         if boolseries.sum() >= threshold * column.size:
             return True
         else:
-            return False          
+            return False   
+
+    def NotAny(self, column, boolseries, threshold=0.0):
+        if boolseries.sum() <= threshold * column.size:
+            return True
+        else:
+            return False             

@@ -6,6 +6,11 @@ from ColumnDeriver.Base import ColumnDeriverBase
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
 
+# TODO scrap all this and migrate to 
+# from dateutil import parser
+
+
+
 class ColumnDeriverDate(ColumnDeriverBase):
 
     name = "date"

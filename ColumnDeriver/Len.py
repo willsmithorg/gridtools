@@ -18,7 +18,8 @@ class ColumnDeriverLen(ColumnDeriverBase):
         return col.dtype == 'object' and ~ self.IsNumeric(col)
         
     def Apply(self, col):
-        newcol = col.series.map(len)      
+        # Replace nones with '' so they don't error, and the length can be 0.
+        newcol = col.series.fillna('').map(len)      
         return { self.name: newcol }
 
         
