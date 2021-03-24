@@ -8,6 +8,10 @@ pip install pandas
 pip install sklearn
 pip install xgboost
 pip install cached_property
+pip install nltk
+pip install regex
+
+
 
 
 
