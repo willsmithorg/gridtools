@@ -4,19 +4,20 @@ import numpy as np
 import logging
 from pprint import pprint
 
-
+import importlib
+from Column import Column
 from ColumnDeriver.Base import ColumnDeriverBase
-from ColumnDeriver.Len import ColumnDeriverLen
-from ColumnDeriver.Abs import ColumnDeriverAbs
-from ColumnDeriver.Upper import ColumnDeriverUpper
-from ColumnDeriver.MinMaxScaler import ColumnDeriverMinMaxScaler
-from ColumnDeriver.RobustScaler import ColumnDeriverRobustScaler
-from ColumnDeriver.Date import ColumnDeriverDate
-from ColumnDeriver.TokenizerCharDecimal import ColumnDeriverTokenizerCharDecimal
+
+# from ColumnDeriver.Len import ColumnDeriverLen
+# from ColumnDeriver.Abs import ColumnDeriverAbs
+# from ColumnDeriver.Upper import ColumnDeriverUpper
+# from ColumnDeriver.MinMaxScaler import ColumnDeriverMinMaxScaler
+# from ColumnDeriver.RobustScaler import ColumnDeriverRobustScaler
+# from ColumnDeriver.Date import ColumnDeriverDate
+# from ColumnDeriver.TokenizerCharDecimal import ColumnDeriverTokenizerCharDecimal
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
-from Column import Column
 
 
 
@@ -25,41 +26,57 @@ class AddDerivedColumns:
     delimiter='.'
     
     def __init__(self):
-        print('AddDerivedColumns init start')
+        #print('AddDerivedColumns init start')
         self.basederiver = ColumnDeriverBase()
-        # Get the list of derivers and initialise all of them.       
-        self.allderivers =  {d() for d in self.basederiver.GetDerivers()}
-        print('AddDerivedColumns init end: {num} derivers'.format(num=len(self.allderivers)))
+        self.allderivers = []   
+        #print('AddDerivedColumns init end: {num} derivers'.format(num=len(self.allderivers)))        
+
+    def Register(self, nameString):
+        #print('AddDerivedColumns Register started')
+
+        m = importlib.import_module('ColumnDeriver.' + nameString)
+        cls = getattr(m, 'ColumnDeriver' + nameString)
+        # Initialise the class to start it running ready for action.        
+        self.allderivers.append(cls())
+
+
+        
+        # self.basederiver = ColumnDeriverBase()
+        # # Get the list of derivers and initialise all of them.       
+        # self.allderivers =  {d() for d in self.basederiver.GetDerivers()}
+        #print(self.basederiver)
+        #print('AddDerivedColumns Register end: {num} derivers'.format(num=len(self.allderivers)))
         
     def Process(self, column):
-
+    
         assert(isinstance(column, Column))
 
         derivedcolumns = []
         
         # print('\t' * column.depth, 'Processing: {num} derivers'.format(num=len(self.allderivers)))
         for deriver in self.allderivers:
-            
             # print('\t' * column.depth, 'considering applying ' + deriver.name + ' to ' + column.name)
        
+            # I have no idea why this works when i pass the column parameter twice, not once.
             if deriver.IsApplicable(column) and column.depth <= deriver.maxdepth:   
 
                 # If we don't allow recursive, make sure we're not using a deriver that was already applied
                 # on this column somewhere in one of its ancestors.
                 if deriver.allowrecursive or deriver not in self.GetParentColDerivers(column): 
                 
-                    print('\t' * column.depth, 'applying ' + deriver.name + ' to ' + column.name)
+                    # print('\t' * column.depth, 'applying ' + deriver.name + ' to ' + column.name)
                     # Apply the deriver.  It will return a hash of new columns (keyed by name), if it thinks any are needed.  
+                    # I have no idea why this works when i pass the column parameter twice, not once.                    
                     newcols = deriver.Apply(column)                    
                     for name,newcol in newcols.items():
-                        print('\t' * column.depth,': got', name)
-                        # Handle the deriver forgetting to wrap a series up as a column.
-                        if ~isinstance(newcol, Column) and isinstance(newcol, pd.Series):
+                        # print('\t' * column.depth,': got', name)
+                        # Generally derivers don't bother to wrap a pd.Series into a Column, so do it for them.
+                        if not isinstance(newcol, Column) and isinstance(newcol, pd.Series):
                             newcol=Column(newcol)
 
                         # No point adding this column if its cardinality is 1.
                         unique_elements = newcol.nunique
-                        print('\t' * column.depth,':', name, 'has', unique_elements, 'unique elements')
+                        # print('\t' * column.depth,':', name, 'has', unique_elements, 'unique elements')
                         if unique_elements > 1:
                             newcol.name = column.name + self.delimiter + name
                             # Save how we created it.
