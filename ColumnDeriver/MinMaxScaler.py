@@ -9,7 +9,6 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class ColumnDeriverMinMaxScaler(ColumnDeriverBase):
 
-    name = "scaled"
     description = "Scaled to the range (0,1) "
     maxdepth = 0
     
@@ -20,7 +19,7 @@ class ColumnDeriverMinMaxScaler(ColumnDeriverBase):
         self.scaler = MinMaxScaler()
                 
     def IsApplicable(self, column):
-        return self.IsNumeric(column) 
+        return column.IsNumeric() 
         
     def Apply(self, column):
         data = column.series

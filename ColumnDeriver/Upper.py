@@ -8,14 +8,13 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class ColumnDeriverUpper(ColumnDeriverBase):
 
-    name = "uppercase"
     description = "Uppercase of "
     
     # Doesn't make sense to apply this to itself.
     allowrecursive = False
 
     def IsApplicable(self, column):
-        return column.dtype == 'object' and self.Some(column, self.StrMatches(column, '[a-z]'))
+        return column.dtype == 'object' and column.Some(column.StrMatches('[a-z]'))
         
     def Apply(self, column):
         newcol = column.series.str.upper()

@@ -9,9 +9,12 @@ from ColumnDeriver.Base import ColumnDeriverBase
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
 
+# Converts strings like 'AA-123BB453C" to "AA", "123", "BB" "453", "C", in case these have separate meaning and help the learning algo.
+# The numeric and character derived columns are numbered separately.
+# We also capture whether the numerics came first, to differentiate between "123ABC" and "ABC123".
+
 class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
 
-    name = "tokenizer_char_decimal"
     description = "Results of tokenizing the column into characters and decimal pieces "
     
     # Don't apply if any strings are longer than this.
@@ -35,14 +38,14 @@ class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
         
          # A dataframe just of the character tokens.
         dfc = pd.DataFrame.from_records(ctok)
-        dfc.columns = ['characters'+str(i+1) for i in range(len(dfc.columns))]
+        dfc.columns = [self.name+'_characters'+str(i+1) for i in range(len(dfc.columns))]
         # A dataframe just of the numeric tokens.
         dfd = pd.DataFrame.from_records(dtok)
-        dfd.columns = ['digits'+str(i+1) for i in range(len(dfd.columns))]
+        dfd.columns = [self.name+'_digits'+str(i+1) for i in range(len(dfd.columns))]
         # A dataframe of booleans, specifying whether the string started with the digits (True)
         dfdf = pd.DataFrame.from_records(dftok)
         dfdf = dfdf.applymap(type).eq(str)
-        dfdf.columns = ['digitsfirst']
+        dfdf.columns = [self.name+'_digitsfirst']
 
         combined = pd.concat([dfc,dfd,dfdf], axis=1)
         

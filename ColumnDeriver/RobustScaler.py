@@ -9,7 +9,6 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class ColumnDeriverRobustScaler(ColumnDeriverBase):
 
-    name = "robustscaled"
     description = "Scaled to the range (0,1) with outliers handled "
     maxdepth = 0
     

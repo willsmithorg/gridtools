@@ -7,9 +7,7 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 
 class ColumnDeriverBase:
-
-
-    name = ""
+    
     description = ""
     # For sanity, unless we specify maxdepth in the derived class.  We don't want infinite recursion!
     maxdepth = 2
@@ -18,55 +16,24 @@ class ColumnDeriverBase:
     # TODO implement.
     allowrecursive = False
 
+    @property
+    def name(self):
+        # ColumnDeriver.Base => Base
+        return self.__module__.split('.')[1]
+        
     def __init__(self):
+        # print('i am initted!', self.name)
         pass
         
-    def IsApplicable(self, column):
+    def IsApplicable(self, col):
         return True
         
     def __str__(self):
-        n =             'Name : ' + name + '\n'        
+        n =             'Name : ' + self.name + '\n'        
         subclasses =    'Subclasses : ' + ','.join([cls.__name__ for cls in ColumnDeriverBase.__subclasses__()]) + '\n'
         return n + subclasses
         
-    def IsNumeric(self, column):
-        return column.dtype == 'int64' or column.dtype == 'float64'
+    # def GetDerivers(self):
+        # return self.__subclasses__()
         
-    def GetDerivers(self):
-        return ColumnDeriverBase.__subclasses__()
-        
-    def StrContains(self, column, substring):
-        return column.series.str.contains(substring, regex=False)
-        
-    def StrMatches(self, column, regex):
-        return column.series.str.contains(regex, regex=True)
-
-    def All(self, column, boolseries, threshold=1.0):
-        if boolseries.sum() >= threshold * column.size:
-            return True
-        else:
-            return False        
-        
-    def Most(self, column, boolseries, threshold=0.8):
-        if boolseries.sum() >= threshold * column.size:
-            return True
-        else:
-            return False
-            
-    def Some(self, column, boolseries, threshold=0.5):
-        if boolseries.sum() >= threshold * column.size:
-            return True
-        else:
-            return False            
-        
-    def AFew(self, column, boolseries, threshold=0.2):
-        if boolseries.sum() >= threshold * column.size:
-            return True
-        else:
-            return False   
-
-    def NotAny(self, column, boolseries, threshold=0.0):
-        if boolseries.sum() <= threshold * column.size:
-            return True
-        else:
-            return False             
+           

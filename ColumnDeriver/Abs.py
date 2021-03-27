@@ -8,7 +8,6 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class ColumnDeriverAbs(ColumnDeriverBase):
 
-    name = "absolute"
     description = "The absolute value of "
     maxdepth = 1
     
@@ -16,7 +15,8 @@ class ColumnDeriverAbs(ColumnDeriverBase):
     allowrecursive = False    
         
     def IsApplicable(self, column):
-        return self.IsNumeric(column) and any(column.series > 0) and any(column.series < 0)
+        # Only apply if some are > 0 and some are < 0, otherwise it achieves nothing.
+        return column.IsNumeric() and any(column.series > 0) and any(column.series < 0)
         
     def Apply(self, column):
         newcol = column.series.map(abs)

@@ -99,7 +99,7 @@ class TestColumn(unittest.TestCase):
         self.assertEqual(f1.children, [f2])
         self.assertEqual(f2.children, [])
         
-        self.assertEqual(f1.ChildNames(), ['ser2'])
+        self.assertEqual(f1.ChildNames, ['ser2'])
 
         
         

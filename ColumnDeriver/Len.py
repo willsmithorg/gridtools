@@ -8,14 +8,12 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class ColumnDeriverLen(ColumnDeriverBase):
 
-    name = "length"
     description = "Length of "
     maxdepth = 2
 
-    def IsApplicable(self, col):
-        print('considering len() on', col.name, 'its type is ', col.dtype)
-        
-        return col.dtype == 'object' and ~ self.IsNumeric(col)
+    def IsApplicable(self, col):  
+        # print('considering len() on', col.name, 'its type is ', col.dtype)        
+        return col.dtype == 'object' and not col.IsNumeric()
         
     def Apply(self, col):
         # Replace nones with '' so they don't error, and the length can be 0.
