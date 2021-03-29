@@ -20,7 +20,6 @@ class TestColumnDeriverUpper(unittest.TestCase):
     # We shouldn't get a derived column on a numeric.
     def testUpperOnNumeric(self):
 
-
         newcols = self.adc.Process(self.col2)        
         self.assertEqual(len(newcols), 0)
 
