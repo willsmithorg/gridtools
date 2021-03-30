@@ -22,20 +22,21 @@ class ColumnDeriverDate(ColumnDeriverBase):
     # Dates with no delimiters must have the years specified.
     # TODO handle dates with months as strings.
     #
-    matchregexes =   [ r'(?:19|20|21|22)\d\d(?:0[1-9]|10|11|12)\d\d',
-                       r'(?:19|20|21|22)?\d\d[/-](?:0[1-9]|10|11|12)[/-]\d\d']
-    captureregexes = [ r'(?P<year>(?:19|20|21|22)\d\d)(?P<month>0[1-9]|10|11|12)(?P<day>\d\d)',
-                       r'(?P<year>(?:19|20|21|22)?\d\d)[/-](?P<month>0[1-9]|10|11|12)[/-](?P<day>\d\d)']
+    # regexes : with delimeters, without delimeters
+    matchregexes =   [ r'(?:19|20|21|22)?\d\d[/-]?(?:0[1-9]|10|11|12)[/-]?\d\d']
+    captureregexes = [ r'(?P<year>(?:19|20|21|22)?\d\d)[/-]?(?P<month>0[1-9]|10|11|12)[/-]?(?P<day>\d\d)']
     
     def IsApplicable(self, column):
         return column.dtype == 'object'
         
     def Apply(self, column):
-    
+        #print("date::apply")
         for matchregex, captureregex in zip(self.matchregexes, self.captureregexes):      
             # If the number NOT matching is low, parse out a date (we do it this way because we might have NAs).
-            
+            # print(column.StrMatches(matchregex)) 
             if column.Some(column.StrMatches(matchregex)):
+                #print("date::apply::some")
+
                 # print(column.name, 'is a date using', matchregex)
             
                 # We extract as float so we get NaN for non-matching rows.

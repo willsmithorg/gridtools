@@ -27,27 +27,43 @@ class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
         return column.dtype == 'object' and all(column.series.fillna('').map(len) < self.maxlen)
         
     def Apply(self, column):
+    
+        # A dataframe just of the character tokens.
+    
         tokenizer_c = RegexpTokenizer(r'[a-zA-Z]+')
         ctok = [ tokenizer_c.tokenize(s) for s in column.series ]
+        # We also produce the tokens in the reverse order in case 'last characters', '2nd last numeric' etc mean something.
+        ctok_reverse = [elem[::-1] for elem in ctok]
         
-        tokenizer_d = RegexpTokenizer('\d+')
+        dfc =  pd.DataFrame.from_records(ctok)   
+        dfcr = pd.DataFrame.from_records(ctok_reverse)         
+        dfc.columns = [self.name+'_characters'+str(i+1)         for i in range(len(dfc.columns))]
+        dfcr.columns = [self.name+'_reversecharacters'+str(i+1) for i in range(len(dfcr.columns))]
+        
+         # A dataframe just of the numeric tokens.      
+        tokenizer_d = RegexpTokenizer(r'\d+')
         dtok = [ tokenizer_d.tokenize(s) for s in column.series ]
-        
-        tokenizer_digitfirst = RegexpTokenizer('^\d')
-        dftok = [ tokenizer_digitfirst.tokenize(s) for s in column.series ]
-        
-         # A dataframe just of the character tokens.
-        dfc = pd.DataFrame.from_records(ctok)
-        dfc.columns = [self.name+'_characters'+str(i+1) for i in range(len(dfc.columns))]
-        # A dataframe just of the numeric tokens.
+        # We also produce the tokens in the reverse order in case 'last characters', '2nd last numeric' etc mean something.        
+        dtok_reverse = [elem[::-1] for elem in dtok]
+
+
         dfd = pd.DataFrame.from_records(dtok)
-        dfd.columns = [self.name+'_digits'+str(i+1) for i in range(len(dfd.columns))]
-        # A dataframe of booleans, specifying whether the string started with the digits (True)
+        dfdr = pd.DataFrame.from_records(dtok_reverse)         
+        
+        dfd.columns = [self.name+'_digits'+str(i+1)         for i in range(len(dfd.columns))]
+        dfdr.columns = [self.name+'_reversedigits'+str(i+1) for i in range(len(dfdr.columns))]
+
+         # A dataframe of booleans, specifying whether the string started with the digits (True)
+       
+        tokenizer_digitfirst = RegexpTokenizer(r'^\d')
+        dftok = [ tokenizer_digitfirst.tokenize(s) for s in column.series ]
+             
         dfdf = pd.DataFrame.from_records(dftok)
         dfdf = dfdf.applymap(type).eq(str)
         dfdf.columns = [self.name+'_digitsfirst']
-
-        combined = pd.concat([dfc,dfd,dfdf], axis=1)
         
+        combined = pd.concat([dfc,dfcr, dfd, dfdr, dfdf], axis=1)
+      
+        #print(combined.to_string())
         return combined.to_dict('series')
 	

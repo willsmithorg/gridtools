@@ -28,7 +28,7 @@ class ColumnDeriverMinMaxScaler(ColumnDeriverBase):
         scaled = self.scaler.fit_transform(data)
         scaled = scaled.reshape(1,-1)[0]        
         series = pd.Series(scaled)
-        return { self.name: newcol }
+        return { self.name: series }
         
  
 

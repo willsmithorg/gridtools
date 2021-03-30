@@ -39,7 +39,7 @@ class Column:
     # Number of unique elements.  We expect this might be expensive to compute so we cache it.
     @cached_property
     def nunique(self):
-        return self.series.nunique()
+        return self.series.nunique(dropna=False)
     
     def MakeChild(self, s):
         self.children.append(s)
