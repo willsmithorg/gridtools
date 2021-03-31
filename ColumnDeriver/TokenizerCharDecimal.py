@@ -64,6 +64,5 @@ class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
         
         combined = pd.concat([dfc,dfcr, dfd, dfdr, dfdf], axis=1)
       
-        #print(combined.to_string())
         return combined.to_dict('series')
 	

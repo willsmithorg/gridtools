@@ -10,6 +10,7 @@ pip install xgboost
 pip install cached_property
 pip install nltk
 pip install regex
+pip install tensorflow_hub
 
 
 

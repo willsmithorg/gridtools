@@ -57,16 +57,14 @@ class AddDerivedColumns:
         for deriver in self.allderivers:
             # print('\t' * column.depth, 'considering applying ' + deriver.name + ' to ' + column.name)
        
-            # I have no idea why this works when i pass the column parameter twice, not once.
-            if deriver.IsApplicable(column) and column.depth <= deriver.maxdepth:   
+            if (column.deriver is None or column.deriver.maybederived) and column.depth <= deriver.maxdepth and deriver.IsApplicable(column) :   
 
                 # If we don't allow recursive, make sure we're not using a deriver that was already applied
                 # on this column somewhere in one of its ancestors.
-                if deriver.allowrecursive or deriver not in self.GetParentColDerivers(column): 
+                if deriver.allowrecursive or deriver not in self.GetAncestorColDerivers(column): 
                 
                     # print('\t' * column.depth, 'applying ' + deriver.name + ' to ' + column.name)
                     # Apply the deriver.  It will return a hash of new columns (keyed by name), if it thinks any are needed.  
-                    # I have no idea why this works when i pass the column parameter twice, not once.                    
                     newcols = deriver.Apply(column)                    
                     for name,newcol in newcols.items():
                         # print('\t' * column.depth,': got', name)
@@ -108,7 +106,7 @@ class AddDerivedColumns:
     # us adding recursive derivers that are the same as an ancestor (e.g. with UPPER this 
     # is unnecessary).
     
-    def GetParentColDerivers(self, column):
+    def GetAncestorColDerivers(self, column):
         
         #print(column)
         derivers = []
@@ -118,4 +116,4 @@ class AddDerivedColumns:
             c = c.parent
             
         return derivers
-            
+              
