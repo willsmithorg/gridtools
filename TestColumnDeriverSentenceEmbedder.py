@@ -37,6 +37,7 @@ class TestColumnDeriverSentenceEmbedder(unittest.TestCase):
         self.assertIsInstance(newcols[0], Column)
         self.assertEqual(newcols[0].name, 'col3.SentenceEmbedder_1') 
 
+        # Check the embeddings looks sane.  Each value should be -1<value<1 and the mean should not be 0, to make sure [0,0,0,0,0] doesn't pass.
         self.assertEqual(len(newcols[0].series),2)  # We embedded 2 sentences.
         self.assertTrue(np.max([ x.series[0] for x in newcols]) < 1)
         self.assertTrue(np.min([ x.series[0] for x in newcols]) > -1)
