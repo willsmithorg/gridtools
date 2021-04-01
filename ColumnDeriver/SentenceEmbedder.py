@@ -13,6 +13,7 @@ class ColumnDeriverSentenceEmbedder(ColumnDeriverBase):
     
     # Doesn't make sense to apply this to itself.
     allowrecursive = False
+    # Let's only do this on absolutely top level columns, because it's expensive (cpu, creates lots more columns).
     maxdepth = 0
     maybederived = False
     
