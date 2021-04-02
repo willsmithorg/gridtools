@@ -9,4 +9,4 @@ py TestColumnDeriverMinMaxScaler.py
 py TestColumnDeriverRobustScaler.py
 py TestColumnDeriverTokenizerCharDecimal.py
 py TestColumnDeriverUpper.py
-py TestColumnDeriverSentenceEmbedder.py
+py  -W ignore TestColumnDeriverSentenceEmbedder.py

@@ -25,7 +25,7 @@ class ColumnDeriverSentenceEmbedder(ColumnDeriverBase):
         
         
     def IsApplicable(self, column):
-        return column.dtype == 'object' and column.Most(column.StrMatches(' ')) and column.Most(column.StrMatches('[a-zA-Z]'))
+        return column.dtype == 'object' and column.Some(column.StrMatches(' ')) and column.Most(column.StrMatches('[a-zA-Z]'))
         
     def Apply(self, column):
         embeddings = self.embedder(column.series)

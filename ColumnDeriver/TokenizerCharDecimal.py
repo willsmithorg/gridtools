@@ -48,7 +48,7 @@ class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
 
 
         dfd = pd.DataFrame.from_records(dtok)
-        dfdr = pd.DataFrame.from_records(dtok_reverse)         
+        dfdr = pd.DataFrame.from_records(dtok_reverse) 
         
         dfd.columns = [self.name+'_digits'+str(i+1)         for i in range(len(dfd.columns))]
         dfdr.columns = [self.name+'_reversedigits'+str(i+1) for i in range(len(dfdr.columns))]
@@ -57,10 +57,13 @@ class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
        
         tokenizer_digitfirst = RegexpTokenizer(r'^\d')
         dftok = [ tokenizer_digitfirst.tokenize(s) for s in column.series ]
-             
+                     
         dfdf = pd.DataFrame.from_records(dftok)
-        dfdf = dfdf.applymap(type).eq(str)
-        dfdf.columns = [self.name+'_digitsfirst']
+        if not dfdf.empty:
+            dfdf = dfdf.applymap(type).eq(str)
+            dfdf.columns = [self.name+'_digitsfirst']
+        else:
+            dfdf = pd.DataFrame()
         
         combined = pd.concat([dfc,dfcr, dfd, dfdr, dfdf], axis=1)
       
