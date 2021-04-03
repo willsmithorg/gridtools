@@ -55,3 +55,7 @@ class ColumnSet:
             print('col:', col.name, ' parent:' , col.parent.name if col.parent is not None else '-')
             print(col)
 
+
+    def GetAllColumns(self):
+        return self.inputcolumns + self.derivedcolumns
+        

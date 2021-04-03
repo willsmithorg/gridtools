@@ -48,3 +48,13 @@ class MakeNumericColumns:
             numericColumn = column.series.to_numpy()
             
         return numericColumn
+        
+    def ProcessColumnSet(self, columnset):
+    
+        numpy_arrays = []
+        
+        for column in columnset.GetAllColumns():
+            numpy_arrays.append(self.Process(column))
+            
+        numpy_array_single = np.stack(numpy_arrays)
+        return numpy_array_single
