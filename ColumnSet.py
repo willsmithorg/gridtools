@@ -14,14 +14,7 @@ class ColumnSet:
     inputcolumns = []
     derivedcolumns = []
     
-    deriversToUse = ['Abs', 
-                     'Date', 
-                     'Len', 
-                     'MinMaxScaler', 
-                     'RobustScaler',
-                     'SentenceEmbedder', 
-                     'TokenizerCharDecimal', 
-                     'Upper' ]
+
     
     
     def __init__(self, df):
@@ -37,14 +30,14 @@ class ColumnSet:
             
         #print(self.inputcolumns)
     
-    
+
+            
     
     def AddDerived(self):
     
         # Create the AddDerivedColumns processor and register all the derivers.
         adc = AddDerivedColumns()        
-        for deriver in self.deriversToUse:
-            adc.Register(deriver)
+        
                          
         for col in self.inputcolumns: 
             print(col.name)

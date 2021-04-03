@@ -17,6 +17,9 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class MakeNumericColumns:
 
+    defaultNumericers = ['LabelEncoded']
+    
+
     def __init__(self):
         self.basenumericer = ColumnNumericerBase()
         self.allnumericers = []   
@@ -33,6 +36,10 @@ class MakeNumericColumns:
         # Initialise the class to start it running ready for action.        
         self.allnumericers.append(cls())
 
+    def RegisterDefaultNumericers(self):
+        for numericer in self.defaultNumericers:
+            self.Register(numericer)
+            
     def Process(self, column):
         
         boolConverted = False

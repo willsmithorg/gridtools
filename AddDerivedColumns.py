@@ -18,7 +18,15 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 class AddDerivedColumns:
 
     delimiter='.'
-    
+    defaultDerivers = ['Abs', 
+                       'Date', 
+                       'Len', 
+                       'MinMaxScaler', 
+                       'RobustScaler',
+                       'SentenceEmbedder', 
+                       'TokenizerCharDecimal', 
+                       'Upper' ]
+                     
     def __init__(self):
         #print('AddDerivedColumns init start')
         self.basederiver = ColumnDeriverBase()
@@ -40,7 +48,11 @@ class AddDerivedColumns:
         # self.allderivers =  {d() for d in self.basederiver.GetDerivers()}
         #print(self.basederiver)
         #print('AddDerivedColumns Register end: {num} derivers'.format(num=len(self.allderivers)))
-        
+
+    def RegisterDefaultDerivers(self):
+        for deriver in self.defaultDerivers:
+            self.Register(deriver)
+            
     def Process(self, column):
     
         assert(isinstance(column, Column))
