@@ -14,3 +14,5 @@ py TestColumnDeriverUpper.py
 
 py TestMakeNumericColumns.py
 py TestColumnNumericerLabelEncoded.py
+
+py TestColumnSet.py
