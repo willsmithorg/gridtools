@@ -21,7 +21,7 @@ class TestColumnNumericerLabelEncoded(unittest.TestCase):
     # If it's already numeric, we should get the numpy equivalent.
     def testNoChangeForNumeric(self):
 
-        unchanged_numpy = self.mnc.Process(self.col1)        
+        unchanged_numpy = self.mnc.ProcessColumn(self.col1)        
         #print(unchanged_numpy)       
         #print(type(unchanged_numpy))
         #print(type(np.array([-1,0,1])))
@@ -31,11 +31,11 @@ class TestColumnNumericerLabelEncoded(unittest.TestCase):
     # Different strings should be encoded to integers, in alphabetical order.
     
     def testEncodedForString(self):        
-        string_to_numpy = self.mnc.Process(self.col2)
+        string_to_numpy = self.mnc.ProcessColumn(self.col2)
         self.assertTrue(np.array_equal(string_to_numpy, np.array([1,2,3,0])))
         
     def testEncodedForEmpty(self):        
-        string_to_numpy = self.mnc.Process(self.col3)
+        string_to_numpy = self.mnc.ProcessColumn(self.col3)
         self.assertTrue(np.array_equal(string_to_numpy, np.array([])))        
         
 if __name__ == '__main__':

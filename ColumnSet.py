@@ -49,6 +49,15 @@ class ColumnSet:
 
     def GetAllColumns(self):
         return self.inputcolumns + self.derivedcolumns
+    
+    def GetInputColumnNames(self):
+        return [ c.name for c in self.inputcolumns ]
+ 
+    # Return the single column that matches this name.  Or return None if there are none that match.
+    def GetInputColumn(self, colname):
+        matching = [ c for c in self.inputcolumns if c.name == colname ]
+        return matching[0] if len(matching) else None
+            
         
     def Remove(self, colname):    
         # Remove this column from the input columns.  

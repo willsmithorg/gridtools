@@ -113,5 +113,15 @@ class Column:
     def NotAny(self, boolseries, threshold=0.0):
         return not self.Most(boolseries, threshold)
      
-            
+    def IsCategorical(self):    
+        if self.dtype == 'object':
+            return True
+        elif self.dtype == 'int64':
+            return True
+        elif self.dtype == 'float64':
+            return False
+        else:
+            raise RuntimeError('unknown IsCategorical for dtype = ', self.series.dtype)
+        
+        
     

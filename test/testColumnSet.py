@@ -104,6 +104,20 @@ class TestColumnSet(unittest.TestCase):
         self.assertEqual(derivedbefore2, derivedbefore)        
 
 
+    def testGetInputColumnNames(self):
+        cs1 = ColumnSet(self.data1)    
+        self.assertEqual(cs1.GetInputColumnNames(), ['country', 'currency', 'manyvalues', 'rand', 'linear', 'city' ])
+        
+ 
+    def testGetInputColumn(self):
+        cs1 = ColumnSet(self.data1) 
+        col = cs1.GetInputColumn('country')
+        self.assertTrue(pd.Series.equals(col.series, pd.Series(self.data1['country'])))
+
+        cs1 = ColumnSet(self.data1) 
+        col = cs1.GetInputColumn('this doesnt exist')
+        self.assertEqual(col, None)
+        
         
 if __name__ == '__main__':
     unittest.main()

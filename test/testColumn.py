@@ -12,7 +12,7 @@ class TestColumn(unittest.TestCase):
     def setUp(self):
         self.ser1 = pd.Series(['abc','def', 'ghij', 'abc'], name='ser1')
         self.ser2 = pd.Series([1, 2, 4],                    name='ser2')
-        self.ser3 = pd.Series(['contents unimportant'],     name='ser3')
+        self.ser3 = pd.Series([1.1, 2.2, 3.3         ],     name='ser3')
     
     def testInitBadParams1(self):
         # Test bad calls to the constructor.
@@ -121,7 +121,20 @@ class TestColumn(unittest.TestCase):
         self.assertEqual(f2.ancestor, f1)
         self.assertEqual(f3.ancestor, f1)   # Note, ancestor not parent.
         
+    # Floating point columns are not categorical.  The rest are.
+    def testIsCategorical(self):
+        f1 = Column(self.ser1)
+        f2 = Column(self.ser2)   
+        f3 = Column(self.ser3)     
+
+        self.assertTrue(f1.IsCategorical())
+        self.assertTrue(f2.IsCategorical())
+        self.assertFalse(f3.IsCategorical())
         
+        # Should get an error for an empty dataframe if it has a forced dtype we don't recognise.
+        f4 = Column(pd.Series([], dtype='bool'))
+        with self.assertRaises(RuntimeError):
+            x = f4.IsCategorical()  
         
 if __name__ == '__main__':
     unittest.main()

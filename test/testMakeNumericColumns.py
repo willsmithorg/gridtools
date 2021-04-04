@@ -24,11 +24,11 @@ class TestMakeNumericColumns(unittest.TestCase):
         mnc = MakeNumericColumns()
         self.assertIsInstance(mnc, MakeNumericColumns)
 
-    def testRegister(self):
+    def testRegisterAndProcess(self):
         mnc = MakeNumericColumns()
         mnc.Register('LabelEncoded')
 
-        numeric = mnc.Process(self.col1)        
+        numeric = mnc.ProcessColumn(self.col1)        
         self.assertGreater(len(numeric), 0)
         self.assertIsInstance(numeric, np.ndarray)
 

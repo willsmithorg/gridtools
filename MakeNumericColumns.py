@@ -13,7 +13,19 @@ from ColumnNumericer.Base import ColumnNumericerBase
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
 
+# Convert a column or columnset from a mix of numerical and categorical, to only categorical, ready for a ML model to read.
+#
 
+# Usage:
+#  mnc = MakeNumericColumns()
+#
+#  mnc.Register('LabelEncoded')
+#    -or-
+#  mnc.RegisterDefaultNumericers()
+#
+#  numpy_array = mnc.Process(column)
+#    -or-
+#  numpy_array = mnc.ProcessColumnSet(columnset)
 
 class MakeNumericColumns:
 
@@ -23,10 +35,7 @@ class MakeNumericColumns:
     def __init__(self):
         self.basenumericer = ColumnNumericerBase()
         self.allnumericers = []   
-        
-        # Register the numericers in the order we want them tried.
-        self.Register('LabelEncoded')
-        
+         
         
     def Register(self, nameString):
         #print('AddDerivedColumns Register started')
@@ -40,7 +49,7 @@ class MakeNumericColumns:
         for numericer in self.defaultNumericers:
             self.Register(numericer)
             
-    def Process(self, column):
+    def ProcessColumn(self, column):
         
         boolConverted = False
         for numericer in self.allnumericers: 
@@ -61,7 +70,7 @@ class MakeNumericColumns:
         numpy_arrays = []
         
         for column in columnset.GetAllColumns():
-            numpy_arrays.append(self.Process(column))
+            numpy_arrays.append(self.ProcessColumn(column))
             
         numpy_array_single = np.stack(numpy_arrays)
-        return numpy_array_single
+        return np.transpose(numpy_array_single)
