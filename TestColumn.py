@@ -12,7 +12,7 @@ class TestColumn(unittest.TestCase):
     def setUp(self):
         self.ser1 = pd.Series(['abc','def', 'ghij', 'abc'], name='ser1')
         self.ser2 = pd.Series([1, 2, 4],                    name='ser2')
-        
+        self.ser3 = pd.Series(['contents unimportant'],     name='ser3')
     
     def testInitBadParams1(self):
         # Test bad calls to the constructor.
@@ -101,6 +101,26 @@ class TestColumn(unittest.TestCase):
         
         self.assertEqual(f1.ChildNames(), ['ser2'])
 
+
+    def testAncestor(self):
+        f1 = Column(self.ser1)
+        f2 = Column(self.ser2)   
+        f3 = Column(self.ser3)
+        
+        f1.MakeChild(f2)
+        f2.MakeChild(f3)
+
+        self.assertEqual(f1.depth, 0)
+        self.assertEqual(f2.depth, 1)
+        
+        self.assertEqual(f1.parent, None)
+        self.assertEqual(f2.parent, f1)
+        self.assertEqual(f3.parent, f2)
+
+        self.assertEqual(f1.ancestor, None)
+        self.assertEqual(f2.ancestor, f1)
+        self.assertEqual(f3.ancestor, f1)   # Note, ancestor not parent.
+        
         
         
 if __name__ == '__main__':

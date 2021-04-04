@@ -14,7 +14,8 @@ class Column:
             raise TypeError('input series must be a pandas Series, not a ' + str(type(series)))
     
         self.series = series
-        self.parent = None        
+        self.parent = None 
+        self.ancestor = None
         self.children = []
         self.depth = 0
         # Which deriver was used to create this column.
@@ -41,9 +42,18 @@ class Column:
     def nunique(self):
         return self.series.nunique(dropna=False)
     
+    # Make s a child column of this column.
     def MakeChild(self, s):
         self.children.append(s)
         s.parent = self
+        
+        # Also record the top level ancestor.  This makes it quick to remove all columns
+        # that were derived from an ancestor, over several levels.
+        if self.ancestor is None:
+            s.ancestor = self
+        else:
+            s.ancestor = self.ancestor
+            
         s.depth = self.depth+1
         
     
@@ -58,13 +68,16 @@ class Column:
                 'Depth : {depth}\n'
                 'Children: [{children}]\n'
                 'Parent: {parent}\n'
+                'Ancestor: {ancestor}\n'
                ).format(
                         name=  self.name,
                         size=  self.size,
                         dtype= self.dtype,
                         depth= self.depth,
                         children=','.join(self.ChildNames()),
-                        parent='-' if self.parent == None else self.parent.name
+                        parent='-'   if self.parent   is None else self.parent.name,
+                        ancestor='-' if self.ancestor is None else self.ancestor.name
+                        
                         )
 
         datastr = str(self.series.head(10))

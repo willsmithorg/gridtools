@@ -23,7 +23,7 @@ class AddDerivedColumns:
                        'Len', 
                        'MinMaxScaler', 
                        'RobustScaler',
-                       'SentenceEmbedder', 
+# too slow!            'SentenceEmbedder', 
                        'TokenizerCharDecimal', 
                        'Upper' ]
                      
@@ -67,7 +67,7 @@ class AddDerivedColumns:
 
                 # If we don't allow recursive, make sure we're not using a deriver that was already applied
                 # on this column somewhere in one of its ancestors.
-                if deriver.allowrecursive or deriver not in self.GetAncestorColDerivers(column): 
+                if deriver.allowrecursive or deriver not in self.GetAncestorsColDerivers(column): 
                 
                     # print('\t' * column.depth, 'applying ' + deriver.name + ' to ' + column.name)
                     # Apply the deriver.  It will return a hash of new columns (keyed by name), if it thinks any are needed.  
@@ -112,7 +112,7 @@ class AddDerivedColumns:
     # us adding recursive derivers that are the same as an ancestor (e.g. with UPPER this 
     # is unnecessary).
     
-    def GetAncestorColDerivers(self, column):
+    def GetAncestorsColDerivers(self, column):
         
         #print(column)
         derivers = []
