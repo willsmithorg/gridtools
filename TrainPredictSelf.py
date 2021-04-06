@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import scipy
 import copy
+import time
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import cross_val_score
@@ -12,10 +13,15 @@ from AddDerivedColumns import AddDerivedColumns
 from MakeNumericColumns import MakeNumericColumns
 
 class TrainPredictSelf:
-
-    #xgboost_subsample = 0.8
-    xgboost_tree_method='auto' # gpu_hist = use gpu.   auto = default.
-    numthreads_xgboost = 8
+   
+    # The below 2 were tuned for the '06_TrainPredict.py' dataset.
+    xgboost_row_subsample=1  # If we set this to <1 we get warnings about LabelEncoder.
+    xgboost_col_subsample=0.5
+    xgboost_tree_method='hist' # gpu_hist = use gpu.   auto = default.
+    
+    
+    xgboost_numthreads = 1
+    cross_validation_numthreads = -1
         
     def __init__(self):
         self.adc = AddDerivedColumns()
@@ -36,6 +42,7 @@ class TrainPredictSelf:
         columnset.AddDerived(self.adc)
         
         
+        totaltime = 0
         # Loop through each column, removing it then predicting it.
         for colname in columnset.GetInputColumnNames():
             print(colname)
@@ -44,25 +51,38 @@ class TrainPredictSelf:
             # Remove this one column.
             columnset_X.Remove(colname)
             # And convert to numpy for learning.
-            numpy_X = self.mnc.ProcessColumnSet(columnset_X)
+            numpy_X = self.mnc.ProcessColumnSet(columnset_X, 'X')
         
             # Get the Y (predicted) column.
             column_Y = columnset.GetInputColumn(colname)
-            numpy_Y = self.mnc.ProcessColumn(column_Y)
+            numpy_Y = self.mnc.ProcessColumn(column_Y, 'Y')
         
             # print('colname:\n',colname)
             # print('numpy_array_X:\n',numpy_X)
             # print('numpy_array_Y:\n',numpy_Y)
             
+
             if column_Y.IsCategorical():            
-                model = XGBClassifier(tree_method=self.xgboost_tree_method, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:logistic')
+                model = XGBClassifier(tree_method=self.xgboost_tree_method, 
+                                      nthread=self.xgboost_numthreads, 
+                                      objective='reg:logistic', 
+                                      subsample=self.xgboost_row_subsample, 
+                                      colsample_bytree=self.xgboost_col_subsample)
             else:
-                model = XGBRegressor (tree_method=self.xgboost_tree_method, verbosity=0, nthread=self.numthreads_xgboost, objective='reg:squarederror') 
+                model = XGBRegressor (tree_method=self.xgboost_tree_method, 
+                                      nthread=self.xgboost_numthreads, 
+                                      objective='reg:squarederror', 
+                                      subsample=self.xgboost_row_subsample, 
+                                      colsample_bytree=self.xgboost_col_subsample) 
             
-            print(np.shape(numpy_X))
-            print(np.shape(numpy_Y))
+
             
-            crossvalidate = RepeatedKFold(n_repeats=4, random_state=1)
-            scores = cross_val_score(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=-1)
-            print(scores)
+            crossvalidate = RepeatedKFold(n_repeats=3, random_state=3)
+            start = time.time()
+            scores = cross_val_score(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads)
+            end = time.time()
+            totaltime += end-start
+            #print(scores)
             print(np.mean(scores))
+        
+        print('Total time', totaltime, 'seconds')

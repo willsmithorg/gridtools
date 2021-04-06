@@ -23,13 +23,13 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 #    -or-
 #  mnc.RegisterDefaultNumericers()
 #
-#  numpy_array = mnc.Process(column)
+#  numpy_array = mnc.Process(column, 'X' or 'Y')
 #    -or-
 #  numpy_array = mnc.ProcessColumnSet(columnset)
 
 class MakeNumericColumns:
 
-    defaultNumericers = ['LabelEncoded']
+    defaultNumericers = ['OneHotEncoded', 'LabelEncoded']
     
 
     def __init__(self):
@@ -49,12 +49,12 @@ class MakeNumericColumns:
         for numericer in self.defaultNumericers:
             self.Register(numericer)
             
-    def ProcessColumn(self, column):
+    def ProcessColumn(self, column, target='X'):
         
         boolConverted = False
         for numericer in self.allnumericers: 
                 
-            if not boolConverted and numericer.IsApplicable(column):
+            if not boolConverted and numericer.IsApplicable(column, target):
                 numericColumn = numericer.Apply(column)
                 assert(isinstance(numericColumn, np.ndarray))
                 boolConverted = True
@@ -65,12 +65,14 @@ class MakeNumericColumns:
             
         return numericColumn
         
-    def ProcessColumnSet(self, columnset):
+    def ProcessColumnSet(self, columnset, target='X'):
     
         numpy_arrays = []
         
         for column in columnset.GetAllColumns():
             numpy_arrays.append(self.ProcessColumn(column))
             
-        numpy_array_single = np.stack(numpy_arrays)
-        return np.transpose(numpy_array_single)
+        numpy_array_single = np.column_stack(numpy_arrays)
+        
+        # print(numpy_array_single)
+        return numpy_array_single

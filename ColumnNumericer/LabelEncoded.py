@@ -12,7 +12,8 @@ class ColumnNumericerLabelEncoded(ColumnNumericerBase):
     def __init__(self):
         self.label_encoder = LabelEncoder()
 
-    def IsApplicable(self, column):
+    def IsApplicable(self, column, target):
+        # We can label encode any field that's not already numeric, regardless of whether it's X or Y.
         return not column.IsNumeric()
         
     def Apply(self, column):

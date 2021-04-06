@@ -31,7 +31,17 @@ class TestMakeNumericColumns(unittest.TestCase):
         numeric = mnc.ProcessColumn(self.col1)        
         self.assertGreater(len(numeric), 0)
         self.assertIsInstance(numeric, np.ndarray)
+        self.assertEqual(numeric.shape, (4,))        
 
+    def testMultipleEncodings(self):
+        mnc = MakeNumericColumns()
+        mnc.Register('OneHotEncoded')        
+        mnc.Register('LabelEncoded')
+
+        numeric = mnc.ProcessColumn(self.col1)        
+        self.assertGreater(len(numeric), 0)
+        self.assertIsInstance(numeric, np.ndarray)
+        self.assertEqual(numeric.shape, (4, 3))         # 4 cells but only 3 labels needed
 
 
 if __name__ == '__main__':
