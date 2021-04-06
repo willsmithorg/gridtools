@@ -52,7 +52,13 @@ class TestColumnSet(unittest.TestCase):
         f = ColumnSet(self.data1)
         self.assertIsInstance(f, ColumnSet)  
     
+    def testSize(self):
+        f = ColumnSet(pd.DataFrame([]))        
+        self.assertEqual(f.size, 0)
 
+        f = ColumnSet(self.data1)
+        self.assertEqual(f.size, 21)
+        
     def testAddDerived(self):
         cs1 = ColumnSet(self.data1)
         

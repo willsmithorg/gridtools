@@ -35,7 +35,15 @@ class ColumnSet:
         obj.inputcolumns =   [ c for c in self.inputcolumns ]
         obj.derivedcolumns = [ c for c in self.derivedcolumns ]
         return obj
-        
+    
+    # All the columns should be the same size, so the size of the ColumnSet is the size of the first column.
+    @property
+    def size(self):
+        if self.inputcolumns:
+            return self.inputcolumns[0].size
+        else:
+            return 0
+            
             
     # Add the derived columns.  
     # Pass in a AddDerivedColumns() class that you've registered

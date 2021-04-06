@@ -123,5 +123,6 @@ class Column:
         else:
             raise RuntimeError('unknown IsCategorical for dtype = ', self.series.dtype)
         
-        
+    def IsBinary(self):
+        return self.IsCategorical() and self.nunique == 2
     

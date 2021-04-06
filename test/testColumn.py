@@ -13,6 +13,7 @@ class TestColumn(unittest.TestCase):
         self.ser1 = pd.Series(['abc','def', 'ghij', 'abc'], name='ser1')
         self.ser2 = pd.Series([1, 2, 4],                    name='ser2')
         self.ser3 = pd.Series([1.1, 2.2, 3.3         ],     name='ser3')
+        self.ser4 = pd.Series(['true', 'false', 'true', 'false'], name='binary')
     
     def testInitBadParams1(self):
         # Test bad calls to the constructor.
@@ -135,7 +136,23 @@ class TestColumn(unittest.TestCase):
         f4 = Column(pd.Series([], dtype='bool'))
         with self.assertRaises(RuntimeError):
             x = f4.IsCategorical()  
+       
+    def testIsBinary(self):
+        f1 = Column(self.ser1)
+        f2 = Column(self.ser2)   
+        f3 = Column(self.ser3) 
+        f4 = Column(self.ser4)
+
+        self.assertFalse(f1.IsBinary())
+        self.assertFalse(f2.IsBinary())
+        self.assertFalse(f3.IsBinary())
+        self.assertTrue(f4.IsBinary())        
         
+        # Should get an error for an empty dataframe if it has a forced dtype we don't recognise.
+        f4 = Column(pd.Series([], dtype='bool'))
+        with self.assertRaises(RuntimeError):
+            x = f4.IsBinary()      
+    
 if __name__ == '__main__':
     unittest.main()
     
