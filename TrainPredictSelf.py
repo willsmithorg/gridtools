@@ -51,7 +51,7 @@ class TrainPredictSelf:
         totaltime = 0
         # Loop through each column, removing it then predicting it.
         for colname in columnset.GetInputColumnNames():
-            print('***',colname,'***')
+            # print('***',colname,'***')
             # Save a copy of the columnset.  We will be deleting bits of it and we we don't want to affect the full one.
             columnset_X = copy.copy(columnset)            
             # Remove this one column (and it's derived columns).
@@ -67,7 +67,7 @@ class TrainPredictSelf:
             crossvalidate = KFold(n_splits=self.GetOptimalSplits(column_Y)) 
 
             if column_Y.IsCategorical():   
-                print('mode : classifier')
+                # print('mode : classifier')
                 objective = 'binary:logistic' if column_Y.IsBinary() else 'reg:logistic'
                 
                 model = XGBClassifier(tree_method=self.xgboost_tree_method, 
@@ -80,7 +80,7 @@ class TrainPredictSelf:
                 results[colname] = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict_proba')
                              
             else:
-                print('mode : regressor')     
+                # print('mode : regressor')     
                 # For a regressor, we train and run the model multiple times to get
                 # an array of predictions that we can later derive mean and std() from.
                 predictions = []
