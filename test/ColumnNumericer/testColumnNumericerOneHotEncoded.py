@@ -44,6 +44,21 @@ class TestColumnNumericerOneHotEncoded(unittest.TestCase):
     def testEncodedForEmpty(self):        
         string_to_numpy = self.mnc.ProcessColumn(self.col3)
         self.assertTrue(np.array_equal(string_to_numpy, np.array([])))        
+
+    # It shouldn't have been one-hot encoded if it's a Y column, so the inverse should be the same as the uninverted.
+    def testInverseUnchanged(self):
+ 
+        unchanged_numpy = self.mnc.ProcessColumn(self.col2, 'Y')        
+        inverse = self.mnc.Inverse(unchanged_numpy, self.col2)
+        self.assertTrue(np.array_equal(inverse, unchanged_numpy))
+        self.assertTrue(np.array_equal(inverse, np.array(self.col2.series)))
+
+    def testInverseString(self):        
+        string_to_numpy = self.mnc.ProcessColumn(self.col2)
+        numpy_to_string = self.mnc.Inverse(string_to_numpy, self.col2)
+        self.assertTrue(np.array_equal(numpy_to_string, np.array(self.col2.series)))
+
+
         
 if __name__ == '__main__':
     unittest.main()

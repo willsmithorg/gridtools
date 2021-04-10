@@ -24,9 +24,15 @@ class ColumnNumericerOneHotEncoded(ColumnNumericerBase):
     
         feature = self.label_encoder.fit_transform(column.series.values)
         feature = feature.reshape(column.series.values.shape[0], 1)
-        feature = self.onehot_encoder.fit_transform(feature)
+        features = self.onehot_encoder.fit_transform(feature)
                 
-        return feature
+        return features
         
-    
+    # To inverse we have to inverse first the one-hot, then the label-encoder.
+    def Inverse(self, numpy_array):
+        step1 = self.onehot_encoder.inverse_transform(numpy_array)
+        step1 = step1.reshape(step1.shape[0], )
+        step2 = self.label_encoder.inverse_transform(step1)        
+        return step2
+	    
 	

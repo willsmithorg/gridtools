@@ -22,9 +22,6 @@ class TestColumnNumericerLabelEncoded(unittest.TestCase):
     def testNoChangeForNumeric(self):
 
         unchanged_numpy = self.mnc.ProcessColumn(self.col1)        
-        #print(unchanged_numpy)       
-        #print(type(unchanged_numpy))
-        #print(type(np.array([-1,0,1])))
         self.assertTrue(np.array_equal(unchanged_numpy, np.array(self.col1.series)))
 
 
@@ -37,6 +34,17 @@ class TestColumnNumericerLabelEncoded(unittest.TestCase):
     def testEncodedForEmpty(self):        
         string_to_numpy = self.mnc.ProcessColumn(self.col3)
         self.assertTrue(np.array_equal(string_to_numpy, np.array([])))        
+        
+    def testInverseUnchanged(self):
+ 
+        unchanged_numpy = self.mnc.ProcessColumn(self.col1)        
+        inverse = self.mnc.Inverse(unchanged_numpy, self.col1)        
+        self.assertTrue(np.array_equal(inverse, np.array(self.col1.series)))
+
+    def testInverseString(self):        
+        string_to_numpy = self.mnc.ProcessColumn(self.col2)
+        numpy_to_string = self.mnc.Inverse(string_to_numpy, self.col2)
+        self.assertTrue(np.array_equal(numpy_to_string, np.array(self.col2.series)))
         
 if __name__ == '__main__':
     unittest.main()

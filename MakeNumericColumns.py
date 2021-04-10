@@ -36,6 +36,8 @@ class MakeNumericColumns:
         self.basenumericer = ColumnNumericerBase()
         self.allnumericers = []   
          
+        # Record which numericer we used to transform which column and target, so we can invert them later.
+        self.numericerUsed = dict()
         
     def Register(self, nameString):
         #print('AddDerivedColumns Register started')
@@ -58,6 +60,8 @@ class MakeNumericColumns:
                 numericColumn = numericer.Apply(column)
                 assert(isinstance(numericColumn, np.ndarray))
                 boolConverted = True
+                # Multi-level dict.
+                self.numericerUsed[column.name] = { target : numericer }
 
         # If we didn't convert, unpack to a numpy array and return.
         if not boolConverted:
@@ -77,3 +81,13 @@ class MakeNumericColumns:
         print('numpy_array_single:')
         print(numpy_array_single)
         return numpy_array_single
+
+    # To invert a converted, we need to know which numericer we used in the first place.
+    # if we didn't use one, we must have passed the column back unconverted.
+    def Inverse(self, numpy_array, column, target='X'):
+    
+        if column.name in self.numericerUsed and target in self.numericerUsed[column.name]:
+            return self.numericerUsed[column.name][target].Inverse(numpy_array)
+        else:
+            return numpy_array
+        

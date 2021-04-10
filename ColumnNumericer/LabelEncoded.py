@@ -22,5 +22,6 @@ class ColumnNumericerLabelEncoded(ColumnNumericerBase):
         feature = feature.astype(int)                    
         return feature
         
-    
+    def Inverse(self, numpy_array):
+        return self.label_encoder.inverse_transform(numpy_array)
 	
