@@ -31,7 +31,8 @@ class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
         # A dataframe just of the character tokens.
     
         tokenizer_c = RegexpTokenizer(r'[a-zA-Z]+')
-        ctok = [ tokenizer_c.tokenize(s) for s in column.series ]
+        # print(column.series)
+        ctok = [ tokenizer_c.tokenize(s) for s in column.series ]        
         # We also produce the tokens in the reverse order in case 'last characters', '2nd last numeric' etc mean something.
         ctok_reverse = [elem[::-1] for elem in ctok]
         

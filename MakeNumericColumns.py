@@ -73,6 +73,7 @@ class MakeNumericColumns:
             numpy_arrays.append(self.ProcessColumn(column))
             
         numpy_array_single = np.column_stack(numpy_arrays)
-        
-        # print(numpy_array_single)
+
+        print('numpy_array_single:')
+        print(numpy_array_single)
         return numpy_array_single

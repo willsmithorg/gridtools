@@ -8,7 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(fiAbsame)s:%(lineno)d - %(message)s')
 
 
-class TestColumnNumericerLabelEncoded(unittest.TestCase):
+class TestColumnNumericerOneHotEncoded(unittest.TestCase):
 
     def setUp(self):
         self.col1 = Column(pd.Series([-1,0,1],                         name='col1'))        
