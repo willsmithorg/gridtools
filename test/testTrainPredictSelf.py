@@ -25,8 +25,16 @@ class TestTrainPredictSelf(unittest.TestCase):
         
         print(results)
         
-        
+    def testClassificationOnCorrelatedFloats(self):
     
+        data = { 'x': np.linspace(0.0, 1.0, 100),
+                 'y': np.linspace(1.0, 0.0, 100) 
+                }
+        df = pd.DataFrame(data)
+        tps = TrainPredictSelf()
+        results = tps.Train(df)
+        
+        #print(results)
         
 
 

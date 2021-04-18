@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class MakeNumericColumns:
 
-    defaultNumericers = ['OneHotEncoded', 'LabelEncoded']
+    defaultNumericers = ['OneHotEncoded', 'LabelEncoded', 'KBinsDiscretizer']
     
 
     def __init__(self):
@@ -52,15 +52,17 @@ class MakeNumericColumns:
             self.Register(numericer)
             
     def ProcessColumn(self, column, target='X'):
+        target = target.upper()    
         
         boolConverted = False
         for numericer in self.allnumericers: 
                 
+            # Keep going until we hit one that's relevant.
             if not boolConverted and numericer.IsApplicable(column, target):
                 numericColumn = numericer.Apply(column)
                 assert(isinstance(numericColumn, np.ndarray))
                 boolConverted = True
-                # Multi-level dict.
+                # Multi-level dict, so we know how we did the conversion, depending on column name and target.
                 self.numericerUsed[column.name] = { target : numericer }
 
         # If we didn't convert, unpack to a numpy array and return.
@@ -70,6 +72,7 @@ class MakeNumericColumns:
         return numericColumn
         
     def ProcessColumnSet(self, columnset, target='X'):
+        target = target.upper()    
     
         numpy_arrays = []
         
@@ -78,16 +81,23 @@ class MakeNumericColumns:
             
         numpy_array_single = np.column_stack(numpy_arrays)
 
-        print('numpy_array_single:')
-        print(numpy_array_single)
+        # print('numpy_array_single:')
+        # print(numpy_array_single)
         return numpy_array_single
 
     # To invert a converted, we need to know which numericer we used in the first place.
     # if we didn't use one, we must have passed the column back unconverted.
     def Inverse(self, numpy_array, column, target='X'):
+        target = target.upper()    
     
         if column.name in self.numericerUsed and target in self.numericerUsed[column.name]:
-            return self.numericerUsed[column.name][target].Inverse(numpy_array)
+            # Inverse expects a 1-d array.  We might have an n-d-array.  So flatten it to 1-d then reshape the output back to the
+            # original shape.
+            flattened = numpy_array.flatten()
+            inverse = self.numericerUsed[column.name][target].Inverse(flattened)
+            inverse = inverse.reshape(numpy_array.shape)
+            
+            return inverse
         else:
             return numpy_array
         

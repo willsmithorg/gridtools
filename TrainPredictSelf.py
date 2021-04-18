@@ -3,7 +3,8 @@ import numpy as np
 import scipy
 import copy
 import time
-from sklearn.model_selection import RepeatedStratifiedKFold
+import warnings
+from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
@@ -15,6 +16,8 @@ from xgboost import XGBClassifier, XGBRegressor
 from ColumnSet import ColumnSet
 from AddDerivedColumns import AddDerivedColumns
 from MakeNumericColumns import MakeNumericColumns
+
+warnings.filterwarnings("ignore", message="The use of label encoder")
 
 class TrainPredictSelf:
    
@@ -34,19 +37,25 @@ class TrainPredictSelf:
         self.mnc = MakeNumericColumns()
         self.mnc.RegisterDefaultNumericers()
         
+        self.inputdf = None
+        
             
+    # Trains each column of a dataframe in turn.  We predict the column using the other columns.
+    # Returns a list of the possible labels for the column, and the probability associated with each label, for every cell in
+    #   the column.
     def Train(self, inputdf):
     
         if( not isinstance(inputdf, pd.DataFrame)):
             raise(TypeError,'df must be a DataFrame not a ', type(inputdf)) 
         
+        self.inputdf = inputdf
         # Convert dataframe to a columnset so we can make all the derived columns.
-        # We only want to do this once.
-        
-        columnset = ColumnSet(inputdf)
+        # We only want to do this once.        
+        columnset = ColumnSet(self.inputdf)
         columnset.AddDerived(self.adc)
         
-        results = dict()        
+        results_labels = dict()        
+        results_proba = dict()
         
         totaltime = 0
         # Loop through each column, removing it then predicting it.
@@ -63,8 +72,9 @@ class TrainPredictSelf:
             column_Y = columnset.GetInputColumn(colname)
             numpy_Y = self.mnc.ProcessColumn(column_Y, 'Y')
 
-
-            crossvalidate = KFold(n_splits=self.GetOptimalSplits(column_Y)) 
+            #print(column_Y.series)
+            
+            crossvalidate = KFold(n_splits=self.GetOptimalSplits(column_Y), shuffle=True) 
 
             if column_Y.IsCategorical():   
                 # print('mode : classifier')
@@ -77,9 +87,21 @@ class TrainPredictSelf:
                                       eval_metric='logloss',                                      
                                       colsample_bytree=self.xgboost_col_subsample)
                 
-                results[colname] = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict_proba')
+                # print(numpy_Y)
+                prediction_proba = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict_proba')
+                
+                # We return the labels associated with 0...n possibles, so that the probabilities can be later joined with the labels
+                # to understand what we actually predicted.
+                labels = np.arange(prediction_proba.shape[1])
+                labels = self.mnc.Inverse(labels, column_Y, 'Y')
+                
+                results_labels[colname] = labels
+                results_proba[colname] = prediction_proba
+                    
                              
             else:
+                error('This path should not run - everything is a classifier due to KBinsDiscretization')
+                
                 # print('mode : regressor')     
                 # For a regressor, we train and run the model multiple times to get
                 # an array of predictions that we can later derive mean and std() from.
@@ -95,18 +117,62 @@ class TrainPredictSelf:
 
                         
                     p = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict')
-                    predictions.append(p)
+                    predictions.append(p)                   
                 results[colname] = predictions                             
 
-        return results
+        return results_labels, results_proba
 
     # How many splits in k-fold training.  
     # Too many : takes ages on a large dataset.
     # Too few  : low quality on a small dataset because we are training on a smaller proportion of the data.
-    def GetOptimalSplits(self, columnset):
-        if columnset.size > self.max_k_splits:
+    def GetOptimalSplits(self, column):
+    
+        # uniques = sum(column.series == val for val in list(column.series))
+        # print(uniques)
+        
+        if column.size > self.max_k_splits:
             return self.max_k_splits
         else:
-            return columnset.size
+            return column.size
         
+    # Get the prediction with the highest probability for each cell.
+    # Return it back as 2 DataTables : the first is the prediction, the 2nd is the probability of the prediction.
+    def SinglePredictionPerCell(self, results_labels, results_proba):
+    
+        dflabels = pd.DataFrame()
+        dfprobas = pd.DataFrame()
+        # For each column, get the index of the highest probability.
+        for colname, proba in results_proba.items():            
+            max_indices = np.argmax(proba, axis=1)            
+            prediction_labels = results_labels[colname][max_indices]
+            prediction_proba  = np.max(results_proba[colname], axis=1)
+            
+            dflabels[colname] = prediction_labels
+            dfprobas[colname] = prediction_proba
+            
+        return dflabels, dfprobas
         
+    def Confidence(self, results_proba):
+        dfconfidence = pd.DataFrame()
+        
+        for colname, proba in results_proba.items():
+            #print(colname)
+            #print(proba)
+            proba_sorted = np.sort(proba, axis=1)
+            # We define confidence as the difference between the 1st and the 2nd highest probabilities.
+            confidence = proba_sorted[:,-1]-proba_sorted[:,-2]
+            dfconfidence[colname] = confidence
+            
+        return dfconfidence
+
+    # **************
+    # Todo, also return boolDifference if we are sure the current value is wrong, but we are not sure what the correct value is.
+    # **************
+    
+    def BoolDifferences(self, dflabels, dfconfidence):
+    
+        boolDiff = pd.DataFrame()
+        for colname in dflabels:
+            boolDiff[colname] = dflabels[colname].ne(self.inputdf[colname]) & dfconfidence[colname].gt(0.5) 
+            
+        return boolDiff

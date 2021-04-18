@@ -17,8 +17,9 @@ class ColumnNumericerOneHotEncoded(ColumnNumericerBase):
         self.onehot_encoder = OneHotEncoder(sparse=False, categories='auto')
 
     def IsApplicable(self, column, target):
+        target = target.upper()    
         # We only want to onehot encode X values , not y.
-        return not column.IsNumeric() and target.upper() == 'X' and column.nunique <= self.max_nunique 
+        return not column.IsNumeric() and target == 'X' and column.nunique <= self.max_nunique 
         
     def Apply(self, column):
     

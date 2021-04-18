@@ -43,6 +43,30 @@ class TestMakeNumericColumns(unittest.TestCase):
         self.assertIsInstance(numeric, np.ndarray)
         self.assertEqual(numeric.shape, (4, 3))         # it shuold have got one-hot encoded.  4 cells but only 3 labels needed.
 
+    def testInverse(self):
+        # Test we can encode with OneHot then invert.
+        mnc = MakeNumericColumns()
+        mnc.Register('OneHotEncoded')        
+
+        numeric = mnc.ProcessColumn(self.col1)   
+        inverse = mnc.Inverse(numeric, self.col1)        
+        self.assertTrue(np.array_equal(inverse, np.array(self.col1.series)))
+
+        numeric = mnc.ProcessColumn(self.col2)   
+        inverse = mnc.Inverse(numeric, self.col2)        
+        self.assertTrue(np.array_equal(inverse, np.array(self.col2.series)))        
+        
+        # Test we can encode with LabelEncoded then invert.
+        mnc = MakeNumericColumns()        
+        mnc.Register('LabelEncoded')        
+
+        numeric = mnc.ProcessColumn(self.col1)   
+        inverse = mnc.Inverse(numeric, self.col1)        
+        self.assertTrue(np.array_equal(inverse, np.array(self.col1.series)))
+
+        numeric = mnc.ProcessColumn(self.col2)   
+        inverse = mnc.Inverse(numeric, self.col2)        
+        self.assertTrue(np.array_equal(inverse, np.array(self.col2.series)))           
         
 if __name__ == '__main__':
     unittest.main()

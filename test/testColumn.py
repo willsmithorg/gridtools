@@ -122,7 +122,7 @@ class TestColumn(unittest.TestCase):
         self.assertEqual(f2.ancestor, f1)
         self.assertEqual(f3.ancestor, f1)   # Note, ancestor not parent.
         
-    # Floating point columns are not categorical.  The rest are.
+    # Everything is categorical these days!
     def testIsCategorical(self):
         f1 = Column(self.ser1)
         f2 = Column(self.ser2)   
@@ -130,7 +130,7 @@ class TestColumn(unittest.TestCase):
 
         self.assertTrue(f1.IsCategorical())
         self.assertTrue(f2.IsCategorical())
-        self.assertFalse(f3.IsCategorical())
+        self.assertTrue(f3.IsCategorical())
         
         # Should get an error for an empty dataframe if it has a forced dtype we don't recognise.
         f4 = Column(pd.Series([], dtype='bool'))
