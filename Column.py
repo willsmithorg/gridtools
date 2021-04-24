@@ -116,7 +116,9 @@ class Column:
     def IsCategorical(self):    
         if self.dtype == 'object':
             return True
-        elif self.dtype == 'int64':
+        elif self.dtype == 'int64':        
+            return True
+        elif self.dtype == 'int32':
             return True
         elif self.dtype == 'float64':           # Even floats should be true because they will have been 
                                                 # through KBinsDiscretizer (for Y only)

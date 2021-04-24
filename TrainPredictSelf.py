@@ -3,33 +3,35 @@ import numpy as np
 import scipy
 import copy
 import time
+import logging
 import warnings
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import KFold
-from sklearn.model_selection import cross_val_score
+# from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.svm import SVR
-from xgboost import XGBClassifier, XGBRegressor
+# from sklearn.neighbors import KNeighborsRegressor
+# from sklearn.svm import SVR
+from xgboost import XGBClassifier
+# from xgboost import XGBRegressor
 from ColumnSet import ColumnSet
 from AddDerivedColumns import AddDerivedColumns
 from MakeNumericColumns import MakeNumericColumns
 
-warnings.filterwarnings("ignore", message="The use of label encoder")
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
+
 
 class TrainPredictSelf:
    
     # The below 2 were tuned for the '06_TrainPredict.py' dataset.
     xgboost_row_subsample=1  # If we set this to <1 we get warnings about LabelEncoder.
-    xgboost_col_subsample=0.5
+    xgboost_col_subsample=0.7
     xgboost_tree_method='auto' # gpu_hist = use gpu.   auto = default.
-    max_k_splits = 20 # Don't use more than this number of k-fold splits, even for large datasets.
+    max_k_splits = 8 # Don't use more than this number of k-fold splits, even for large datasets.
     regression_loops = 10 # Run this many loops to get a decent mean/stdev for regression columns.
     
     xgboost_numthreads = 1
-    cross_validation_numthreads = -1
+    cross_validation_numthreads = 8
         
     def __init__(self):
         self.adc = AddDerivedColumns()
@@ -54,7 +56,7 @@ class TrainPredictSelf:
         columnset = ColumnSet(self.inputdf)
         columnset.AddDerived(self.adc)
         
-        results_labels = dict()        
+        results_labels = dict()    
         results_proba = dict()
         
         totaltime = 0
@@ -80,45 +82,30 @@ class TrainPredictSelf:
                 # print('mode : classifier')
                 objective = 'binary:logistic' if column_Y.IsBinary() else 'reg:logistic'
                 
-                model = XGBClassifier(tree_method=self.xgboost_tree_method, 
-                                      nthread=self.xgboost_numthreads, 
-                                      objective=objective, 
-                                      subsample=self.xgboost_row_subsample, 
-                                      eval_metric='logloss',                                      
-                                      colsample_bytree=self.xgboost_col_subsample)
                 
-                # print(numpy_Y)
-                prediction_proba = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict_proba')
-                
-                # We return the labels associated with 0...n possibles, so that the probabilities can be later joined with the labels
-                # to understand what we actually predicted.
-                labels = np.arange(prediction_proba.shape[1])
-                labels = self.mnc.Inverse(labels, column_Y, 'Y')
-                
-                results_labels[colname] = labels
-                results_proba[colname] = prediction_proba
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(action="ignore")
+                    model = XGBClassifier(tree_method=self.xgboost_tree_method, 
+                                          nthread=self.GetOptimalXGBoostThreads(column_Y),
+                                          objective=objective, 
+                                          subsample=self.xgboost_row_subsample, 
+                                          eval_metric='logloss',                                      
+                                          colsample_bytree=self.xgboost_col_subsample)
+                    
+                    # print(numpy_Y)
+                    prediction_proba = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict_proba')
+                        
+                    # We return the labels associated with 0...n possibles, so that the probabilities can be later joined with the labels
+                    # to understand what we actually predicted.
+                    labels = np.arange(prediction_proba.shape[1])
+                    labels = self.mnc.Inverse(labels, column_Y, 'Y')
+                    
+                    results_labels[colname] = labels
+                    results_proba[colname] = prediction_proba
                     
                              
             else:
-                error('This path should not run - everything is a classifier due to KBinsDiscretization')
-                
-                # print('mode : regressor')     
-                # For a regressor, we train and run the model multiple times to get
-                # an array of predictions that we can later derive mean and std() from.
-                predictions = []
-                for i in range(self.regression_loops):
-
-                    model = XGBRegressor (tree_method=self.xgboost_tree_method, 
-                                          nthread=self.xgboost_numthreads, 
-                                          objective='reg:squarederror', 
-                                          subsample=self.xgboost_row_subsample, 
-                                          colsample_bytree=self.xgboost_col_subsample,
-                                          random_state = i)                 # Make sure xgboost produces different predictions every time.
-
-                        
-                    p = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict')
-                    predictions.append(p)                   
-                results[colname] = predictions                             
+                error('This path should not run - everything is a classifier due to KBinsDiscretization')                            
 
         return results_labels, results_proba
 
@@ -134,7 +121,14 @@ class TrainPredictSelf:
             return self.max_k_splits
         else:
             return column.size
-        
+
+    # Heuristic  from testing.  If it's a small dataset, there's an overhead to doing multithreaded.       
+    def GetOptimalXGBoostThreads(self, column):
+        if column.size > 300:
+            return 4
+        else:
+            return 1
+
     # Get the prediction with the highest probability for each cell.
     # Return it back as 2 DataTables : the first is the prediction, the 2nd is the probability of the prediction.
     def SinglePredictionPerCell(self, results_labels, results_proba):

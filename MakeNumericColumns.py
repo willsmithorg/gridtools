@@ -93,9 +93,9 @@ class MakeNumericColumns:
         if column.name in self.numericerUsed and target in self.numericerUsed[column.name]:
             # Inverse expects a 1-d array.  We might have an n-d-array.  So flatten it to 1-d then reshape the output back to the
             # original shape.
-            flattened = numpy_array.flatten()
-            inverse = self.numericerUsed[column.name][target].Inverse(flattened)
-            inverse = inverse.reshape(numpy_array.shape)
+            #flattened = numpy_array.flatten()
+            inverse = self.numericerUsed[column.name][target].Inverse(numpy_array)
+            #inverse = inverse.reshape(numpy_array.shape)
             
             return inverse
         else:

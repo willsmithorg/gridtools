@@ -22,7 +22,7 @@ class TestColumnDeriverSentenceEmbedder(unittest.TestCase):
         
 
     # We shouldn't get a derived column on a numeric 
-    @unittest.skip
+    # @unittest.skip
     def testSentenceEmbedderNotApplicable(self):
         newcols = self.adc.Process(self.col1)        
         self.assertEqual(len(newcols), 0)
@@ -31,7 +31,7 @@ class TestColumnDeriverSentenceEmbedder(unittest.TestCase):
         self.assertEqual(len(newcols), 0)
 
     # We should get a derived column on a string column.
-    @unittest.skip
+    # @unittest.skip
     def testSentenceEmbedderOnSentences(self):
         newcols = self.adc.Process(self.col3)    
         # 1 new columns got created from the embedding.
