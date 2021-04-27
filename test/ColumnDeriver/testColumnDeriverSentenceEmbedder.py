@@ -7,6 +7,12 @@ from AddDerivedColumns import AddDerivedColumns
 import logging
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
 
+import os
+
+# Make tensorflow startup much quieter
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
+
 
 class TestColumnDeriverSentenceEmbedder(unittest.TestCase):
 

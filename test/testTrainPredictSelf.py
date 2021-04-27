@@ -23,7 +23,7 @@ class TestTrainPredictSelf(unittest.TestCase):
         tps = TrainPredictSelf()
         results = tps.Train(df)
         
-        print(results)
+        # print(results)
         
     def testClassificationOnCorrelatedFloats(self):
     

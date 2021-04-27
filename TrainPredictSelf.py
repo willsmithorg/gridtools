@@ -89,6 +89,7 @@ class TrainPredictSelf:
                                           nthread=self.GetOptimalXGBoostThreads(column_Y),
                                           objective=objective, 
                                           subsample=self.xgboost_row_subsample, 
+                                          use_label_encoder=False,
                                           eval_metric='logloss',                                      
                                           colsample_bytree=self.xgboost_col_subsample)
                     
