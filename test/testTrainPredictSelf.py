@@ -1,4 +1,5 @@
 import unittest
+import os
 import pandas as pd
 import numpy as np
 from TrainPredictSelf import TrainPredictSelf
@@ -11,7 +12,8 @@ class TestTrainPredictSelf(unittest.TestCase):
 
     def setUp(self):
         pass
-        
+
+    @unittest.skipIf(os.environ.get('SKIPSLOW'), 'skipping slow tests')        
     def testBasicClassification(self):
         data = { 'str': ['abc']*10 + ['def']*10,        
                  'num': [0]    *10 + [2]    *10
@@ -24,7 +26,8 @@ class TestTrainPredictSelf(unittest.TestCase):
         results = tps.Train(df)
         
         # print(results)
-        
+
+    @unittest.skipIf(os.environ.get('SKIPSLOW'), 'skipping slow tests')        
     def testClassificationOnCorrelatedFloats(self):
     
         data = { 'x': np.linspace(0.0, 1.0, 100),

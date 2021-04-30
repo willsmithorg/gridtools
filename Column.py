@@ -123,6 +123,8 @@ class Column:
         elif self.dtype == 'float64':           # Even floats should be true because they will have been 
                                                 # through KBinsDiscretizer (for Y only)
             return True
+        elif self.dtype == 'bool':
+            return True
         else:
             raise RuntimeError('unknown IsCategorical for dtype = ', self.series.dtype)
         

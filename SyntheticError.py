@@ -17,7 +17,6 @@ class SyntheticError:
  
  
     def __init__(self):
-    
         pass
         
         
@@ -53,8 +52,8 @@ class SyntheticError:
             else:
                 col = x[:,i]                    
             df['col'+str(i)] = col
-            
-        df['col'+str(x.shape[1])] = y
+               
+        df['col'+str(x.shape[1])] = y        
         #print(df)        
 
         return df
@@ -76,6 +75,8 @@ class SyntheticError:
     # listing where the errors were introduced.
     def CreateErrors(self, df, quantity=1):
     
+        # Create a copy so we don't change the original.
+        df = df.copy()    
         # Create an identically sized array to tell us which cells we changed.
         boolChanged = df.copy()
         for col in boolChanged.columns:            
@@ -103,7 +104,12 @@ class SyntheticError:
                         different = True
             else:
             # Continuous - choose any random value within the existing range.
-                new = random.uniform(min(df[column_to_perturb]), max(df[column_to_perturb]))
+                different = False
+                while not different:
+                    new = random.uniform(min(df[column_to_perturb]), max(df[column_to_perturb]))
+                    if (abs(new - df.iloc[targetrow, targetcolumn]) > 
+                       (max(df[column_to_perturb]) - min(df[column_to_perturb])) / 4):
+                        different = True
                         
             df.iloc[targetrow, targetcolumn] = new
             boolChanged.iloc[targetrow, targetcolumn] = True
