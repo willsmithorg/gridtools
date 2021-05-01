@@ -14,6 +14,7 @@ from sklearn.model_selection import cross_val_predict
 # from sklearn.svm import SVR
 from xgboost import XGBClassifier
 # from xgboost import XGBRegressor
+from Column import Column
 from ColumnSet import ColumnSet
 from AddDerivedColumns import AddDerivedColumns
 from MakeNumericColumns import MakeNumericColumns
@@ -62,7 +63,7 @@ class TrainPredictSelf:
         totaltime = 0
         # Loop through each column, removing it then predicting it.
         for colname in columnset.GetInputColumnNames():
-            # print('***',colname,'***')
+            print('***',colname,'***')
             # Save a copy of the columnset.  We will be deleting bits of it and we we don't want to affect the full one.
             columnset_X = copy.copy(columnset)            
             # Remove this one column (and it's derived columns).
@@ -89,11 +90,12 @@ class TrainPredictSelf:
                                           nthread=self.GetOptimalXGBoostThreads(column_Y),
                                           objective=objective, 
                                           subsample=self.xgboost_row_subsample, 
-                                          use_label_encoder=False,
+                                          use_label_encoder=True,
                                           eval_metric='logloss',                                      
                                           colsample_bytree=self.xgboost_col_subsample)
                     
-                    # print(numpy_Y)
+                    print(numpy_X)
+                    print(numpy_Y)
                     prediction_proba = cross_val_predict(model, numpy_X, numpy_Y,cv=crossvalidate,n_jobs=self.cross_validation_numthreads, method='predict_proba')
                         
                     # We return the labels associated with 0...n possibles, so that the probabilities can be later joined with the labels
@@ -147,6 +149,7 @@ class TrainPredictSelf:
             
         return dflabels, dfprobas
         
+    # Display the probability percentage difference between the top 1 and the 2nd top percentages.
     def Confidence(self, results_proba):
         dfconfidence = pd.DataFrame()
         
@@ -160,14 +163,57 @@ class TrainPredictSelf:
             
         return dfconfidence
 
-    # **************
-    # Todo, also return boolDifference if we are sure the current value is wrong, but we are not sure what the correct value is.
-    # **************
-    
-    def BoolDifferences(self, dflabels, dfconfidence):
+
+    # These are the differences when we are pretty sure that the prediction is accurate, and it's different
+    # from observed.
+    def BoolDifferencesConfidentPredictionCorrect(self, results_labels, dflabels, results_proba, dfconfidence):
     
         boolDiff = pd.DataFrame()
         for colname in dflabels:
-            boolDiff[colname] = dflabels[colname].ne(self.inputdf[colname]) & dfconfidence[colname].gt(0.5) 
+        
+            # Keep tightening the confidence we expect in the top value 
+            # until we are getting <= 5% predicted-wrong errors.  Otherwise we're just 
+            # spamming the column with errors.
+            proportion = 1
+            threshold = 0.7
+            while proportion > 0.05 and threshold < 0.95:
+                boolDiff[colname] = dflabels[colname].ne(self.inputdf[colname]) & dfconfidence[colname].gt(threshold) 
+                proportion = np.mean(boolDiff[colname].astype(int))
+                threshold += 0.05
+                
             
         return boolDiff
+
+    # These are the differences when we are sure the observed is wrong, but are not sure what the correct value is.    
+    def BoolDifferencesConfidentObservedWrong(self, results_labels, dflabels, results_proba, dfconfidence):
+    
+        boolDiff = pd.DataFrame()
+
+        # We have to again map the input data to a numeric array, so we can index the correct column
+        # of the results_proba, which contains the probability of each possible class of each row of the particular column.
+        for colname in dflabels:
+            print(colname)
+            column = Column(self.inputdf[colname])
+            numericCol = self.mnc.ProcessColumn(column, 'Y').astype(int)
+            #print(numericCol)
+            probs_for_observed = results_proba[colname][np.arange(results_proba[colname].shape[0]), numericCol]
+            print(probs_for_observed)
+            # We don't want too many cells to fail on a given column.
+            # So take the 2nd percentile on a given column or 20% probability of accuracy, whichever is lower.
+            secondpercentile = np.percentile(probs_for_observed, 2)
+            #print(firstpercentile)
+            threshold = np.min([secondpercentile, 0.2]) 
+            
+            boolDiff[colname] = probs_for_observed < threshold
+            
+
+
+        return boolDiff
+        
+    def boolDifferencesCombined(self, results_labels, dflabels, results_proba, dfconfidence):
+    
+        a = self.BoolDifferencesConfidentObservedWrong    (results_labels, dflabels, results_proba, dfconfidence)
+        b = self.BoolDifferencesConfidentPredictionCorrect(results_labels, dflabels, results_proba, dfconfidence)
+        
+        return a | b
+        
