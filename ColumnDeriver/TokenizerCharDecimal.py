@@ -22,6 +22,8 @@ class ColumnDeriverTokenizerCharDecimal(ColumnDeriverBase):
     
     # Doesn't make sense to apply this to itself.
     allowrecursive = False
+    
+    allowOneToOne = False
 
     def IsApplicable(self, column):
         return column.dtype == 'object' and all(column.series.fillna('').map(len) < self.maxlen)

@@ -158,6 +158,25 @@ class TestColumn(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             x = f6.IsBinary()      
     
+    def testIsOneToOne(self):
+        f1 = Column(self.ser1)
+        f2 = Column(self.ser2)   
+        f3 = Column(self.ser3) 
+        f4 = Column(self.ser4)
+        f5 = Column(self.ser5)
+        
+        self.assertFalse(f1.IsOneToOne(f2))
+        self.assertFalse(f1.IsOneToOne(f4))  
+        self.assertFalse(f1.IsOneToOne(f5))         
+        self.assertFalse(f2.IsOneToOne(f1))
+        self.assertFalse(f4.IsOneToOne(f1)) 
+        self.assertFalse(f5.IsOneToOne(f1)) 
+        
+        self.assertTrue(f2.IsOneToOne(f3))
+        self.assertTrue(f3.IsOneToOne(f2))        
+        self.assertTrue(f4.IsOneToOne(f5))  
+        self.assertTrue(f5.IsOneToOne(f4))      
+        
 if __name__ == '__main__':
     unittest.main()
     

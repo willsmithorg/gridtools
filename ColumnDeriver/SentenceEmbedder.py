@@ -13,6 +13,12 @@ class ColumnDeriverSentenceEmbedder(ColumnDeriverBase):
     
     # Doesn't make sense to apply this to itself.
     allowrecursive = False
+    
+    # It may produce 1:1 columns with the existing string, but we still like it, because it tells us 
+    # things we didn't know about the string.
+    allowOneToOne = True
+
+    
     # Let's only do this on absolutely top level columns, because it's expensive (cpu, creates lots more columns).
     maxdepth = 0
     maybederived = False

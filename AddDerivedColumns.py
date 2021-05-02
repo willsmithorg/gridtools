@@ -81,12 +81,20 @@ class AddDerivedColumns:
                         # No point adding this column if its cardinality is 1.
                         unique_elements = newcol.nunique
                         # print('\t' * column.depth,':', name, 'has', unique_elements, 'unique elements')
-                        if unique_elements > 1:
+                        if unique_elements == 1:
+                            # print('no need to add', name, 'based on',column.name, 'it results in a column with cardinality == 1')
+                            pass            
+                        elif not deriver.allowOneToOne and column.IsOneToOne(newcol):                            
+                            # print('no need to add', name, 'based on',column.name, 'because they are 1:1')
+                            pass
+                        else:
                             newcol.name = column.name + self.delimiter + name
                             # Save how we created it.
                             newcol.deriver = deriver
                             column.MakeChild(newcol)                    
-                            derivedcolumns.append(newcol)                    
+                            derivedcolumns.append(newcol) 
+
+
                     
                 else:
                     # print('\t' * column.depth, 'applicable but blocked by recursion')
@@ -122,4 +130,4 @@ class AddDerivedColumns:
             c = c.parent
             
         return derivers
-              
+      

@@ -13,6 +13,9 @@ class ColumnDeriverUpper(ColumnDeriverBase):
     # Doesn't make sense to apply this to itself.
     allowrecursive = False
 
+    # Don't apply if it doesn't change anything material.
+    allowOneToOne = False
+    
     def IsApplicable(self, column):
         return column.dtype == 'object' and column.Some(column.StrMatches('[a-z]'))
         

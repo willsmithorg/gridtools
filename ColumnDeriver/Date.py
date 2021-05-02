@@ -18,6 +18,9 @@ class ColumnDeriverDate(ColumnDeriverBase):
     # Doesn't make sense to apply this to itself.
     allowrecursive = False
 
+    # Don't apply if it doesn't change anything material.
+    allowOneToOne = False
+    
     # If this many rows match a regex, the column is a date. 
     # Dates with no delimiters must have the years specified.
     # TODO handle dates with months as strings.

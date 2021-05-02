@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 class TestColumnDeriverUpper(unittest.TestCase):
 
     def setUp(self):
-        self.col1 = Column(pd.Series(['abc','def', 'ghij', 'abc'], name='col1'))
+        self.col1 = Column(pd.Series(['abc','def', 'ghij', 'ABC'], name='col1'))
         self.col2 = Column(pd.Series([1, 2, 4],                    name='col1'))
  
         self.adc = AddDerivedColumns()

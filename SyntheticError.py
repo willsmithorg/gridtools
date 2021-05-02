@@ -5,8 +5,8 @@ import logging
 import random
 from sklearn.datasets import make_classification
 from sklearn.preprocessing import KBinsDiscretizer
-from MakeNumericColumns import MakeNumericColumns
 from TrainPredictSelf import TrainPredictSelf
+from InterpretPredictions import InterpretPredictions
 
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.%(msecs)03d - %(filename)s:%(lineno)d - %(message)s')
@@ -61,14 +61,13 @@ class SyntheticError:
     def HowPredictable(self, df):
     
         tps = TrainPredictSelf()
-        
+        ip = InterpretPredictions()
         results, proba = tps.Train(df)
-        results, _ = tps.SinglePredictionPerCell(results, proba)
+        results, _ = ip.SinglePredictionPerCell(results, proba)
         boolSame = results.eq(df)
         
-        # Prints the sum of all the Trues (where we correctly predicted the input dataframe) / the total size.
-        # This is a single float, and tells us how 'predictable' the entire dataframe is.
-        
+        # Returns the sum of all the Trues (where we correctly predicted the input dataframe) / the total size.
+        # This is a single float, and tells us how 'predictable' the entire dataframe is.        
         return (boolSame.sum().sum() / boolSame.size)
         
     # Introduce 'quantity' errors to an existing dataframe.  Return the new dataframe and a boolean array of the same shape, 

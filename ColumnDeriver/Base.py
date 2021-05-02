@@ -15,6 +15,8 @@ class ColumnDeriverBase:
     # Can this deriver be applied to a column that was created from this deriver somewhere up the hierarchy?
     # TODO implement.
     allowrecursive = False
+
+    allowOneToOne = False
     
     maybederived = True
 

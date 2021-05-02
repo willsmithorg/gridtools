@@ -35,7 +35,7 @@ class TestColumnDeriverAbs(unittest.TestCase):
         self.assertEqual(len(newcols), 0)
 
     # We should get a derived column on a column with positives and negatives.
-    def testAbsOnAllPositive(self):
+    def testAbsOnPositiveNegative(self):
         newcols = self.adc.Process(self.col1)    
         # 1 new column got created, it's a Column, and it contains a series that's what we expect.
         self.assertEqual(len(newcols), 1)

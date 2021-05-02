@@ -13,6 +13,9 @@ class ColumnDeriverAbs(ColumnDeriverBase):
     
     # Doesn't make sense to apply this to itself.    
     allowrecursive = False    
+    
+    # It might not change the cardinality, but we still want to do the Abs.
+    allowOneToOne = True
         
     def IsApplicable(self, column):
         # Only apply if some are > 0 and some are < 0, otherwise it achieves nothing.

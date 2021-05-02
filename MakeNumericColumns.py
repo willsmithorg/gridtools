@@ -29,8 +29,10 @@ logging.basicConfig(level=logging.INFO, datefmt='%H:%M:%S', format='%(asctime)s.
 
 class MakeNumericColumns:
 
-    defaultNumericers = ['OneHotEncoded', 'LabelEncoded', 'KBinsDiscretizer']
-    
+    #defaultNumericers = ['OneHotEncoded', 'LabelEncoded', 'KBinsDiscretizer']
+    defaultNumericers = ['LabelEncoded', 'KBinsDiscretizer']
+    # Currently we can't use one-hot because we don't then get a 1:1 between the names of the columns in
+    # the columnset and the feature_importances.
 
     def __init__(self):
         self.basenumericer = ColumnNumericerBase()

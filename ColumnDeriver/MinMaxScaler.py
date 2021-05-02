@@ -13,7 +13,10 @@ class ColumnDeriverMinMaxScaler(ColumnDeriverBase):
     maxdepth = 0
     
     # Doesn't make sense to apply this to itself.    
-    allowrecursive = False    
+    allowrecursive = False 
+
+    # Any scaling by definition is likley to be 1:1 but we still allow it.
+    allowOneToOne = True
 
     def __init__(self):
         self.scaler = MinMaxScaler()

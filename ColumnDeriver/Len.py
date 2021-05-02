@@ -11,6 +11,8 @@ class ColumnDeriverLen(ColumnDeriverBase):
     description = "Length of "
     maxdepth = 2
 
+    allowOneToOne = False
+    
     def IsApplicable(self, col):  
         # print('considering len() on', col.name, 'its type is ', col.dtype)        
         return col.dtype == 'object' and not col.IsNumeric()

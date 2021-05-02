@@ -100,7 +100,7 @@ class TestColumnSet(unittest.TestCase):
         # One few input columns
         self.assertEqual(inputbefore - inputafter, 1)
         # Several fewer derived columns
-        self.assertGreater(derivedbefore - derivedafter, 1)
+        self.assertGreaterEqual(derivedbefore - derivedafter, 1)
 
         # And the copy of the columnset should not have been altered.
         inputbefore2   = len(cs2.inputcolumns)

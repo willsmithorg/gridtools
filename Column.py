@@ -131,3 +131,27 @@ class Column:
     def IsBinary(self):
         return self.IsCategorical() and self.nunique == 2
     
+    # Report if two series are 1:1.  In some cases, this will help avoid unnecessary deriving.
+    # Based on https://stackoverflow.com/questions/50643386/easy-way-to-see-if-two-columns-are-one-to-one-in-pandas      
+    def IsOneToOne(self, col2):
+    
+        # Two fast tests to prevent the effort of creating a dataframe lower down for a more
+        # comprehensive test.
+        if self.size != col2.size:
+            return False
+        
+        if self.nunique != col2.nunique:
+            return False
+            
+        df = pd.DataFrame()
+        df['col1']=self.series
+        df['col2']=col2.series
+        first  = df.drop_duplicates(['col1', 'col2']).groupby('col1')['col2'].count().max()
+        
+        if first != 1:
+            return False
+            
+        second = df.drop_duplicates(['col1', 'col2']).groupby('col2')['col1'].count().max()
+        
+        return second == 1
+            
