@@ -29,7 +29,6 @@ class TrainPredictSelf:
     max_k_splits = 8 # Don't use more than this number of k-fold splits, even for large datasets.
     regression_loops = 10 # Run this many loops to get a decent mean/stdev for regression columns.
     
-    xgboost_numthreads = 1
     cross_validation_numthreads = 8
         
     def __init__(self):
@@ -188,14 +187,14 @@ class TrainPredictSelf:
             labels = np.arange(prediction_proba.shape[1])
             labels = self.mnc.Inverse(labels, column_Y, 'Y')
             
-            results_labels[colname] = labels
-            results_proba[colname] = prediction_proba     
+            results_labels = labels
+            results_proba = prediction_proba     
             # print(columnset_X.GetAllColumnNames())
             # print(model.feature_importances_)
             
             # add a multipler to feature_importances_ so it sums to 1.
             # print(model.feature_importances_)
             
-            results_feature_importances[colname] = { k:v for (k,v) in zip(columnset_X.GetAllColumnNames(), model.feature_importances_) if v > 0 }
+            results_feature_importances = [ (k,v) for (k,v) in zip(columnset_X.GetAllColumnNames(), model.feature_importances_) if v > 0 ]
             
         return results_labels, results_proba, results_feature_importances
